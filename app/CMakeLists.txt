@@ -5,6 +5,8 @@ project(zepthyr_nrf_bridge)
 set(ZEPHYR_TOOLCHAIN_VARIANT gnuarmemb)
 Set(GNUARMEMB_TOOLCHAIN_PATH C:/gnu_arm_embedded)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS y)
+
 
 FILE(GLOB app_sources src/*.c)
 target_sources(app PRIVATE ${app_sources})
