@@ -1,0 +1,1 @@
+zephyr_nrf_bridge
