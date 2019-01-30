@@ -13,7 +13,7 @@
 #define GPIO_OUT_PIN  17
 
 #define SPI_DRV_NAME SPI_2_LABEL
-#define SPI_CS_PIN 12
+#define SPI_CS_PIN 17
 // #define SPI_2_LABEL					    DT_NORDIC_NRF_SPI_40023000_LABEL
 // #define SPI_2_MISO_PIN					DT_NORDIC_NRF_SPI_40023000_MISO_PIN
 // #define SPI_2_MOSI_PIN					DT_NORDIC_NRF_SPI_40023000_MOSI_PIN
@@ -43,6 +43,9 @@ int cc2500_init();
 int cc2500_transceive(u8_t address, u8_t *tx_buf, u8_t tx_count, u8_t *rx_buf, u8_t rx_count, u8_t *status);
 int cc2500_execute_transceive();
 void bufcpy(u8_t *from, u8_t *to, u8_t count);
+
+static inline u8_t cc2500_status();
+static bool verify_osc_stabilization();
 
 /*
 
@@ -86,13 +89,6 @@ int cc2500_init()
         return ret;
     }
 
-    // Configure MISO as input to be able to read ready status
-    ret = gpio_pin_configure(gpio_device, SPI_2_MISO_PIN, (GPIO_DIR_IN | GPIO_POL_NORMAL | GPIO_PUD_NORMAL));
-    if (ret != 0) {
-        printk("Error configuring pin %d!\n", SPI_2_MISO_PIN);
-        return;
-    }
-
     // Get SPI driver
     spi_device = device_get_binding(SPI_DRV_NAME);
     if (!spi_device) {
@@ -134,29 +130,14 @@ void bufcpy(u8_t *from, u8_t *to, u8_t count){
     }
 }
 
+
 int cc2500_execute_transceive() {
     int ret = 0;
-
-    u32_t chipNotReady = 1;
-
-    // Read MISO pin first to see if it is high initially
-    ret = gpio_pin_read(gpio_device, SPI_2_MISO_PIN, &chipNotReady);
-    if (ret != 0) { printk("An error occured reading MISO"); }
-    printk("Value of MISO before pulling down CSn: %d\n", chipNotReady);
 
     // Pull CSn low to initiate transfer
     ret = gpio_pin_write(gpio_device, SPI_CS_PIN, 0);
     if (ret) { printk("Error set pin %d!\n", SPI_CS_PIN); }
 
-    // Wait for MISO to go low
-    while(chipNotReady) {
-      ret = gpio_pin_read(gpio_device, SPI_2_MISO_PIN, &chipNotReady);
-
-      if (ret != 0) {
-        printk("An error occured pulling MISO");
-        break;
-      }
-    }
 
     ret = spi_transceive(spi_device, &config, &tx_buf_set, &rx_buf_set);
     if (ret != 0) {
@@ -177,7 +158,7 @@ int cc2500_transceive(u8_t address, u8_t *tx_buf, u8_t tx_count, u8_t *rx_buf, u
     int ret = 0;
 
     // FIRST check that the connection is init.
-    if (gpio_device == NULL || spi_device == NULL) {
+    if (gpio_device == NULL || spi_device == NULL) { // Should also ckeck that CC2500 is ON and not in sleep or off
         ret = cc2500_init();
     }
 
@@ -187,7 +168,6 @@ int cc2500_transceive(u8_t address, u8_t *tx_buf, u8_t tx_count, u8_t *rx_buf, u
 
     // Should clear memory in rx buf? 
     rx_spi_buf.len = rx_count + 1;
-
 
     ret = cc2500_execute_transceive();
 
@@ -200,3 +180,11 @@ int cc2500_transceive(u8_t address, u8_t *tx_buf, u8_t tx_count, u8_t *rx_buf, u
     return 0;
 }
 
+static inline u8_t cc2500_status()
+{
+    return 0x00;
+}
+static bool verify_osc_stabilization()
+{
+    return true;
+}
