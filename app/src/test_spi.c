@@ -35,10 +35,14 @@ void test_cc2500(void)
 {
     printk("Testing CC2500\n");
     u8_t value, status;
-    cc2500_read_status_reg(CC2500_REG_PARTNUM, &value, &status);
 
-    printk("Status byte: 0x%02X\n", status);
-    printk("Data byte: 0x%02X\n", value);
+    cc2500_read_status_reg(CC2500_REG_PARTNUM, &value, &status);
+    printk("Status: 0x%02X\n", status);
+    printk("Partnum: 0x%02X\n", value);
+
+    cc2500_read_status_reg(CC2500_REG_VERSION, &value, &status);
+    printk("Status: 0x%02X\n", status);
+    printk("Version: 0x%02X\n", value);
     
 }
 
@@ -72,12 +76,7 @@ void test_spi(void)
             printk("Error set pin %d!\n", GPIO_OUT_PIN);
     }
 
-    // Configure MISO as input to be able to read ready status
-    ret = gpio_pin_configure(gpio_out_dev, SPI_2_MISO_PIN, (GPIO_DIR_IN));
-    if (ret) {
-        printk("Error configuring pin %d!\n", SPI_2_MISO_PIN);
-        return;
-    }
+    
 
     // Get SPI driver
     spi = device_get_binding(SPI_DRV_NAME);

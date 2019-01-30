@@ -67,9 +67,8 @@ int cc2500_read_status_reg(u8_t address, u8_t *value, u8_t *status)
 
 int cc2500_init()
 {
-    printk("Testing SPI\n");
     printk("SPI driver name: %s\n", SPI_DRV_NAME);
-    printk("SCK: %d, MISO: %d, MOSI: %d\n", SPI_2_SCK_PIN, SPI_2_MISO_PIN, SPI_2_MOSI_PIN);
+    printk("SCK: %d, MISO: %d, MOSI: %d, CSn: %d\n", SPI_2_SCK_PIN, SPI_2_MISO_PIN, SPI_2_MOSI_PIN, SPI_CS_PIN);
 
     int ret = 0;
 
@@ -82,9 +81,16 @@ int cc2500_init()
 
     // Configure output
     ret = gpio_pin_configure(gpio_device, SPI_CS_PIN, (GPIO_DIR_OUT));
-    if (ret) {
-        printk("Error configuring pin %d!\n", GPIO_OUT_PIN);
+    if (ret != 0) {
+        printk("Error configuring pin %d!\n", SPI_CS_PIN);
         return ret;
+    }
+
+    // Configure MISO as input to be able to read ready status
+    ret = gpio_pin_configure(gpio_device, SPI_2_MISO_PIN, (GPIO_DIR_IN | GPIO_POL_NORMAL | GPIO_PUD_NORMAL));
+    if (ret != 0) {
+        printk("Error configuring pin %d!\n", SPI_2_MISO_PIN);
+        return;
     }
 
     // Get SPI driver
@@ -138,13 +144,13 @@ int cc2500_execute_transceive() {
     if (ret != 0) { printk("An error occured reading MISO"); }
     printk("Value of MISO before pulling down CSn: %d\n", chipNotReady);
 
-    // Execute tranceive
-    ret = gpio_pin_write(gpio_device, GPIO_OUT_PIN, 0);
-    if (ret) { printk("Error set pin %d!\n", GPIO_OUT_PIN); }
+    // Pull CSn low to initiate transfer
+    ret = gpio_pin_write(gpio_device, SPI_CS_PIN, 0);
+    if (ret) { printk("Error set pin %d!\n", SPI_CS_PIN); }
 
     // Wait for MISO to go low
     while(chipNotReady) {
-      ret = gpio_pin_read(gpio_device, 28, &chipNotReady);
+      ret = gpio_pin_read(gpio_device, SPI_2_MISO_PIN, &chipNotReady);
 
       if (ret != 0) {
         printk("An error occured pulling MISO");
@@ -152,15 +158,15 @@ int cc2500_execute_transceive() {
       }
     }
 
-    // int spi_transceive(structdevice *dev, conststructspi_config *config, conststructspi_buf_set *tx_bufs, conststructspi_buf_set *rx_spi_bufbufs)
     ret = spi_transceive(spi_device, &config, &tx_buf_set, &rx_buf_set);
     if (ret != 0) {
         printk("An error occured during SPI transmission: %d\n", ret);
     }
     
-    ret = gpio_pin_write(gpio_device, GPIO_OUT_PIN, 1);
+
+    ret = gpio_pin_write(gpio_device, SPI_CS_PIN, 1);
     if (ret) {
-            printk("Error set pin %d!\n", GPIO_OUT_PIN);
+            printk("Error set pin %d!\n", SPI_CS_PIN);
     }
 
     return ret;

@@ -65,8 +65,8 @@
 #define CC2500_REG_TXBYTES      0x3A    // Underflow and number of bytes
 #define CC2500_REG_RXBYTES      0x3B    // Overflow and number of bytes
 
-#define CC2500_REG_RCCTRL1      0x3C
-#define CC2500_REG_RCCTRL0      0x3D
+#define CC2500_REG_RCCTRL1_STAT 0x3C    // Last RC oscillator calibration result
+#define CC2500_REG_RCCTRL0_STAT 0x3D    // Last RC oscillator calibration result
                                                                                                                                              
 // Burst read/write registers
 #define CC2500_REG_PATABLE      0x3E    // PA control settings table
