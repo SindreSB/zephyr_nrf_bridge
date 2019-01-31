@@ -9,6 +9,7 @@
 
 #include "cc2500/cc2500_spi.h"
 #include "cc2500/cc2500_reg.h"
+#include "cc2500/cc2500.h"
 
 // Does this work for NRF52 -yes, but not general enough?
 #define GPIO_OUT_DRV_NAME "GPIO_0"
@@ -24,17 +25,59 @@
 #define SEC_TO_TICK(sec) sec * 1200 // Trial and error, not accurate
 
 
-// SPI buffers
-u8_t tx_buf[10];
-u8_t rx_buf[10];
+u8_t data_buffer[64];
 
-struct spi_buf trans_buf[10];
-struct spi_buf recv_buf[10];
+u8_t rx_buf[10];
+u8_t tx_buf[10];
+
+void read_package_from_cc()
+{
+    printk("GDO0 asserted, which indicates end of packet received\n");
+
+    // Config should have put the device into idle mode at end of package
+    // but just to be sure
+    cc2500_mode_idle();
+    
+    u8_t rxbytes, status;
+    cc2500_read_register(CC2500_REG_RXBYTES, &rxbytes, &status);
+
+    printk("Status is: %02X\n", status);
+
+    // If overflow, ignore it all and retry
+    if (rxbytes & BIT(7)) {
+        printk("Overflow in RX FIFO\n");
+        
+    }
+    else {
+        u8_t num_bytes_rx = rxbytes & 0x7F; // Mask bit 7
+        cc2500_read_burst(CC2500_REG_RXFIFO, data_buffer, num_bytes_rx, NULL);
+
+        printk("%d bytes received\n", num_bytes_rx);
+        int i;
+        for(i = 0; i < num_bytes_rx; i++) {
+            printk("%02X ", data_buffer[i]);
+        }
+    }    
+
+    printk("Flushing rx fifo\n");
+    cc2500_flush_rxfifo();
+
+    printk("Go back into receive\n");
+    cc2500_mode_receive(0);
+    
+    printk("Handler completed\n");
+    return;
+}
 
 void test_cc2500(void) 
 {
     printk("Testing CC2500\n");
     u8_t value, status;
+
+    /*if(!cc2500_verify_osc_stabilization()) {
+        printk("CC2500 didn't become ready in time\n");
+        return;
+    }*/
 
     cc2500_read_status_reg(CC2500_REG_PARTNUM, &value, &status);
     printk("Status: 0x%02X\n", status);
@@ -46,131 +89,53 @@ void test_cc2500(void)
     printk("Status: 0x%02X\n", status);
     printk("Version: 0x%02X\n", value);
     
-}
 
-void test_spi(void)
-{
-    printk("Testing SPI\n");
-    printk("SPI driver name: %s\n", SPI_DRV_NAME);
-    printk("SCK: %d, MISO: %d, MOSI: %d\n", SPI_2_SCK_PIN, SPI_2_MISO_PIN, SPI_2_MOSI_PIN);
+    // Write required register values
+    printk("Writing Dexcom config to device\n");
+    cc2500_write_register(CC2500_REG_IOCFG0,	0x01, NULL);
+    cc2500_write_register(CC2500_REG_PKTLEN,	0xff, NULL);
+    cc2500_write_register(CC2500_REG_PKTCTRL1,	0x04, NULL);
+    cc2500_write_register(CC2500_REG_PKTCTRL0,	0x05, NULL);
+    cc2500_write_register(CC2500_REG_ADDR,	    0x00, NULL);
+    cc2500_write_register(CC2500_REG_CHANNR,	0x00, NULL);
+    cc2500_write_register(CC2500_REG_FSCTRL1,	0x0f, NULL);
+    cc2500_write_register(CC2500_REG_FSCTRL0,	0x00, NULL);
+    cc2500_write_register(CC2500_REG_FREQ2,	    0x5d, NULL);
+    cc2500_write_register(CC2500_REG_FREQ1,	    0x44, NULL);
+    cc2500_write_register(CC2500_REG_FREQ0,	    0xeb, NULL);
+    cc2500_write_register(CC2500_REG_FREND1,	0xb6, NULL);
+    cc2500_write_register(CC2500_REG_FREND0,	0x10, NULL);
+    cc2500_write_register(CC2500_REG_MDMCFG4,	0x7a, NULL);
+    cc2500_write_register(CC2500_REG_MDMCFG3,	0xf8, NULL);
+    cc2500_write_register(CC2500_REG_MDMCFG2,	0x73, NULL);
+    cc2500_write_register(CC2500_REG_MDMCFG1,	0x23, NULL);
+    cc2500_write_register(CC2500_REG_MDMCFG0,	0x3b, NULL);
+    cc2500_write_register(CC2500_REG_DEVIATN,	0x40, NULL);
+    cc2500_write_register(CC2500_REG_MCSM2,	    0x07, NULL);
+    cc2500_write_register(CC2500_REG_MCSM1, 	0x30, NULL);
+    cc2500_write_register(CC2500_REG_MCSM0,	    0x18, NULL);
+    cc2500_write_register(CC2500_REG_FOCCFG,	0x16, NULL);
+    cc2500_write_register(CC2500_REG_FSCAL3,	0xa9, NULL);
+    cc2500_write_register(CC2500_REG_FSCAL2,	0x0a, NULL);
+    cc2500_write_register(CC2500_REG_FSCAL1,	0x00, NULL);
+    cc2500_write_register(CC2500_REG_FSCAL0,	0x11, NULL);
+    cc2500_write_register(CC2500_REG_AGCCTRL2,	0x03, NULL);
+    cc2500_write_register(CC2500_REG_AGCCTRL1,	0x00, NULL);
+    cc2500_write_register(CC2500_REG_AGCCTRL0,	0x91, NULL);
+    cc2500_write_register(CC2500_REG_TEST2,	    0x81, NULL);
+    cc2500_write_register(CC2500_REG_TEST1,	    0x35, NULL);
+    cc2500_write_register(CC2500_REG_TEST0,	    0x0b, NULL);
+    cc2500_write_register(CC2500_REG_FOCCFG,	0x0a, NULL);
+    cc2500_write_register(CC2500_REG_BSCFG,	    0x6c, NULL);
 
-    struct device *spi;
-    struct device *gpio_out_dev;
-    int ret;
+    printk("Config completed\n");
 
+    printk("Registering callback for GDO0\n");
+    cc2500_register_gdo0_handler(read_package_from_cc);
+    printk("Handler registered\n");
 
-    // Get output driver
-    gpio_out_dev = device_get_binding(GPIO_OUT_DRV_NAME);
-    if (!gpio_out_dev) {
-            printk("Cannot find %s!\n", GPIO_OUT_DRV_NAME);
-            return;
-    }
+    printk("Going into RX mode\n");
+    cc2500_mode_receive(0);
 
-    // Configure output
-    ret = gpio_pin_configure(gpio_out_dev, SPI_CS_PIN, (GPIO_DIR_OUT));
-    if (ret) {
-        printk("Error configuring pin %d!\n", GPIO_OUT_PIN);
-        return;
-    }
-
-    ret = gpio_pin_write(gpio_out_dev, GPIO_OUT_PIN, 1);
-    if (ret) {
-            printk("Error set pin %d!\n", GPIO_OUT_PIN);
-    }
-
-    // Configure MISO as input to be able to read ready status
-    ret = gpio_pin_configure(gpio_out_dev, SPI_2_MISO_PIN, (GPIO_DIR_IN));
-    if (ret) {
-        printk("Error configuring pin %d!\n", SPI_2_MISO_PIN);
-        return;
-    }
-
-    // Get SPI driver
-    spi = device_get_binding(SPI_DRV_NAME);
-    if (!spi) {
-        printk("SPI: Device driver not found.\n");
-        return;
-    }
-    // CS control config
-    /*struct spi_cs_control cs_ctrl;cs_ctrl.gpio_dev = gpio_out_dev;cs_ctrl.gpio_pin = SPI_CS_PIN;cs_ctrl.delay = 100;*/
-
-    // SPI config, LSB might be wrong
-    struct spi_config config;
-    config.frequency = 500000;
-    config.slave = SPI_OP_MODE_MASTER;
-    config.cs = NULL;
-    config.operation  = 0 
-                        | SPI_OP_MODE_MASTER 
-                        | SPI_TRANSFER_MSB
-                        | SPI_WORD_SET(8);
-
-    // Send buffers, single buffer pluss set wrapper
-    tx_buf[0] = 0xC0 | 0x30; // Address to partnum, which should be 0x80
-    tx_buf[1] = 0x0; // Dummydata while receiving
-
-    struct spi_buf tx_spi_buf;
-    tx_spi_buf.buf = tx_buf;
-    tx_spi_buf.len = 2;
-
-    trans_buf[0] = tx_spi_buf;
-
-    struct spi_buf_set trans_buf_set;
-    trans_buf_set.buffers = trans_buf;
-    trans_buf_set.count = 1;
-
-    // Receive buffer, single buffer pluss set wrapper
-    struct spi_buf rx_spi_buf;
-    rx_spi_buf.buf = rx_buf;
-    rx_spi_buf.len = 2;
-
-    recv_buf[0] = rx_spi_buf;
-
-    struct spi_buf_set recv_buf_set;
-    recv_buf_set.buffers = recv_buf;
-    recv_buf_set.count = 1;
-    
-
-
-    u32_t chipNotReady = 1;
-    // Read MISO pin first to see if it is high initially
-    ret = gpio_pin_read(gpio_out_dev, SPI_2_MISO_PIN, &chipNotReady);
-    if (ret != 0) {
-      printk("An error occured reading MISO");
-    }
-    printk("Value of MISO before pulling down CSn: %d\n", chipNotReady);
-
-    // Execute tranceive
-    ret = gpio_pin_write(gpio_out_dev, GPIO_OUT_PIN, 0);
-    if (ret) {
-            printk("Error set pin %d!\n", GPIO_OUT_PIN);
-    }
-
-    // Wait for MISO to go low
-    while(chipNotReady) {
-      ret = gpio_pin_read(gpio_out_dev, 28, &chipNotReady);
-
-      if (ret != 0) {
-        printk("An error occured pulling MISO");
-        break;
-      }
-    }
-    //gpio_pin_read(struct device *port, u32_t pin, u32_t *value)
-
-
-    // int spi_transceive(structdevice *dev, conststructspi_config *config, conststructspi_buf_set *tx_bufs, conststructspi_buf_set *rx_spi_bufbufs)
-    ret = spi_transceive(spi, &config, &trans_buf_set, &recv_buf_set);
-    if (ret != 0) {
-        printk("An error occured during SPI transmission: %d\n", ret);
-    }
-    
-    ret = gpio_pin_write(gpio_out_dev, GPIO_OUT_PIN, 1);
-    if (ret) {
-            printk("Error set pin %d!\n", GPIO_OUT_PIN);
-    }
-
-    // Check statusbit 
-    printk("Status byte: 0x%02X\n", rx_buf[0]);
-    printk("Data byte: 0x%02X\n", rx_buf[1]);
-
-    return;
+    printk("All setup completed\n");
 }

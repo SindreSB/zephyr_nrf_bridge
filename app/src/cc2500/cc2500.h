@@ -68,11 +68,19 @@ typedef struct cc2500_packet {
     u8_t LQI;
 } cc2500_packet_t;
 
+bool cc2500_verify_osc_stabilization();
+
 int cc2500_configure(cc2500_config_t *config);
 
 int cc2500_reset();
 
 int cc2500_read_package();
+
+int cc2500_mode_idle();
+
+int cc2500_mode_receive(u8_t channel);
+
+int cc2500_flush_rxfifo();
 
 
 #endif /* CC2500_H */
