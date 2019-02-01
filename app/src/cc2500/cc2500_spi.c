@@ -6,6 +6,7 @@
 #include <gpio.h>
 #include <spi.h>
 
+#include "cc2500.h"
 #include "cc2500_spi.h"
 #include "cc2500_reg.h"
 
@@ -21,69 +22,44 @@
 #define GDO0_PIN 30
 #define GDO2_PIN 31
 
-typedef struct device device_t;
-typedef struct gpio_callback gpio_callback_t;
-
-typedef struct spi_buf spi_buf_t;
-typedef struct spi_buf_set spi_buf_set_t;
-typedef struct spi_config spi_config_t;
-
-// Buffers
-u8_t tx_data[65];
-u8_t rx_data[65];
-
-spi_buf_t tx_spi_buf;
-spi_buf_t rx_spi_buf;
-
-spi_buf_set_t tx_buf_set;
-spi_buf_set_t rx_buf_set;
-
-device_t *spi_device = NULL;
-spi_config_t config;
-
-device_t *gpio_device = NULL;
-static gpio_callback_t gpio_cb;
 
 InterruptHandler gdo0_handler = NULL;
 InterruptHandler gdo2_handler = NULL;
 
 // Forward declare private functions
-int cc2500_init();
-int cc2500_transceive(u8_t address, u8_t *tx_buf, u8_t tx_count, u8_t *rx_buf, u8_t rx_count, u8_t *status);
-int cc2500_execute_transceive();
-
-void bufcpy(u8_t *from, u8_t *to, u8_t count);
+int cc2500_init(cc2500_ctx_t *ctx);
+int cc2500_transceive(cc2500_ctx_t *ctx, u8_t address, u8_t *tx_buf, u8_t tx_count, u8_t *rx_buf, u8_t rx_count, u8_t *status);
 
 
-int cc2500_send_strobe(u8_t strobe, u8_t *status)
+int cc2500_send_strobe(cc2500_ctx_t *ctx, u8_t strobe, u8_t *status)
 {
-    return cc2500_transceive( CC2500_OFF_READ_SINGLE | strobe, NULL, 0, NULL, 0, status);
+    return cc2500_transceive(ctx, CC2500_OFF_READ_SINGLE | strobe, NULL, 0, NULL, 0, status);
 }
 
-int cc2500_write_register(u8_t address, u8_t value, u8_t *status)
+int cc2500_write_register(cc2500_ctx_t *ctx, u8_t address, u8_t value, u8_t *status)
 {
-    return cc2500_transceive( CC2500_OFF_WRITE_SINGLE | address, &value, 1, NULL, 0, status);
+    return cc2500_transceive(ctx, CC2500_OFF_WRITE_SINGLE | address, &value, 1, NULL, 0, status);
 }
 
-int cc2500_read_register(u8_t address, u8_t *value, u8_t *status)
+int cc2500_read_register(cc2500_ctx_t *ctx, u8_t address, u8_t *value, u8_t *status)
 {
-    return cc2500_transceive( CC2500_OFF_READ_SINGLE | address, NULL, 0, value, 1, status);
+    return cc2500_transceive(ctx, CC2500_OFF_READ_SINGLE | address, NULL, 0, value, 1, status);
 }
 
-int cc2500_read_burst(u8_t address, u8_t *buffer, int count, u8_t *status)
+int cc2500_read_burst(cc2500_ctx_t *ctx, u8_t address, u8_t *buffer, int count, u8_t *status)
 {
-    return cc2500_transceive( CC2500_OFF_READ_BURST | address, buffer, count, NULL, 0, status);
+    return cc2500_transceive(ctx, CC2500_OFF_READ_BURST | address, buffer, count, NULL, 0, status);
 }
 
-int cc2500_read_status_byte(u8_t *status)
+int cc2500_read_status_byte(cc2500_ctx_t *ctx, u8_t *status)
 {
-    return cc2500_transceive( CC2500_OFF_READ_SINGLE | CC2500_CMD_SNOP, NULL, 0, NULL, 0, status);
+    return cc2500_transceive(ctx, CC2500_OFF_READ_SINGLE | CC2500_CMD_SNOP, NULL, 0, NULL, 0, status);
 }
 
 
-int cc2500_read_status_reg(u8_t address, u8_t *value, u8_t *status)
+int cc2500_read_status_reg(cc2500_ctx_t *ctx, u8_t address, u8_t *value, u8_t *status)
 {
-    return cc2500_transceive( CC2500_OFF_READ_BURST | address, NULL, 0, value, 1, status);
+    return cc2500_transceive(ctx, CC2500_OFF_READ_BURST | address, NULL, 0, value, 1, status);
 }
 
 void gdo_interrupt(device_t *gpio_dev, gpio_callback_t *cb, u32_t pins)
@@ -102,7 +78,7 @@ void gdo_interrupt(device_t *gpio_dev, gpio_callback_t *cb, u32_t pins)
     }
 }
 
-int cc2500_init()
+int cc2500_init(cc2500_ctx_t *ctx)
 {
     printk("SPI driver name: %s\n", SPI_DRV_NAME);
     printk("SCK: %d, MISO: %d, MOSI: %d, CSn: %d\n", SPI_2_SCK_PIN, SPI_2_MISO_PIN, SPI_2_MOSI_PIN, SPI_CS_PIN);
@@ -110,135 +86,127 @@ int cc2500_init()
     int ret = 0;
 
     // Get output driver
-    gpio_device = device_get_binding(GPIO_OUT_DRV_NAME);
-    if (!gpio_device) {
+    ctx->gpio_dev = device_get_binding(GPIO_OUT_DRV_NAME);
+    if (!(ctx->gpio_dev)) {
             printk("Cannot find %s!\n", GPIO_OUT_DRV_NAME);
             return ret;
     }
 
     // Configure output
-    ret = gpio_pin_configure(gpio_device, SPI_CS_PIN, (GPIO_DIR_OUT));
+    ret = gpio_pin_configure(ctx->gpio_dev, SPI_CS_PIN, (GPIO_DIR_OUT));
     if (ret != 0) {
         printk("Error configuring pin %d!\n", SPI_CS_PIN);
         return ret;
     }
 
     // Configure interrupt on GDO0 and GDO2
-    ret = gpio_pin_configure(gpio_device, GDO0_PIN, (GPIO_DIR_IN | GPIO_INT | GPIO_INT_ACTIVE_HIGH));
+    ret = gpio_pin_configure(ctx->gpio_dev, GDO0_PIN, (GPIO_DIR_IN | GPIO_INT | GPIO_INT_ACTIVE_HIGH));
     if (ret != 0) {
         printk("Error configuring pin %d!\n", GDO0_PIN);
         return ret;
     }
 
-    ret = gpio_pin_configure(gpio_device, GDO2_PIN, (GPIO_DIR_IN | GPIO_INT | GPIO_INT_ACTIVE_HIGH));
+    ret = gpio_pin_configure(ctx->gpio_dev, GDO2_PIN, (GPIO_DIR_IN | GPIO_INT | GPIO_INT_ACTIVE_HIGH));
     if (ret != 0) {
         printk("Error configuring pin %d!\n", GDO2_PIN);
         return ret;
     }
 
-    gpio_init_callback(&gpio_cb, gdo_interrupt, BIT(GDO0_PIN) | BIT(GDO2_PIN));
-    gpio_add_callback(gpio_device, &gpio_cb);
+    gpio_init_callback(ctx->gdo0_cb, gdo_interrupt, BIT(GDO0_PIN));
+    gpio_add_callback(ctx->gpio_dev, ctx->gdo0_cb);
 
 
     // Get SPI driver
-    spi_device = device_get_binding(SPI_DRV_NAME);
-    if (!spi_device) {
+    ctx->spi_dev = device_get_binding(SPI_DRV_NAME);
+    if (!ctx->spi_dev) {
         printk("SPI: Device driver not found.\n");
         return ret;
     }
 
-    config.frequency = 500000;
-    config.slave = SPI_OP_MODE_MASTER;
-    config.cs = NULL;
-    config.operation  = 0 
+    ctx->spi_conf.frequency = 500000;
+    ctx->spi_conf.slave = SPI_OP_MODE_MASTER;
+    ctx->spi_conf.cs = NULL;
+    ctx->spi_conf.operation  = 0 
                         | SPI_OP_MODE_MASTER 
                         | SPI_TRANSFER_MSB
                         | SPI_WORD_SET(8);
 
-    tx_spi_buf.buf = tx_data;
-    tx_spi_buf.len = 0;
-
-    tx_buf_set.buffers = &tx_spi_buf;
-    tx_buf_set.count = 1;
-
-    rx_spi_buf.buf = rx_data;
-    rx_spi_buf.len = 0;
-
-    rx_buf_set.buffers = &rx_spi_buf;
-    rx_buf_set.count = 1;
-
+    
     return 0;
 }
 
-void bufcpy(u8_t *from, u8_t *to, u8_t count){
-    if (from == NULL || to == NULL) {
-        return;
-    }
-
-    u8_t i;
-    for(i = 0; i < count; i++) {
-        to[i] = from[i];
-    }
-}
-
-
-int cc2500_execute_transceive() {
-    int ret = 0;
-
-    // Pull CSn low to initiate transfer
-    ret = gpio_pin_write(gpio_device, SPI_CS_PIN, 0);
-    if (ret) { printk("Error set pin %d!\n", SPI_CS_PIN); }
-
-
-    ret = spi_transceive(spi_device, &config, &tx_buf_set, &rx_buf_set);
-    if (ret != 0) {
-        printk("An error occured during SPI transmission: %d\n", ret);
-    }
-    
-
-    ret = gpio_pin_write(gpio_device, SPI_CS_PIN, 1);
-    if (ret != 0) {
-            printk("Error set pin %d!\n", SPI_CS_PIN);
-    }
-
-    return ret;
-}
-
-int cc2500_transceive(u8_t address, u8_t *tx_buf, u8_t tx_count, u8_t *rx_buf, u8_t rx_count, u8_t *status)
+int cc2500_transceive(cc2500_ctx_t *ctx, u8_t address, u8_t *tx_buf, u8_t tx_count, u8_t *rx_buf, u8_t rx_count, u8_t *status)
 {
     int ret = 0;
 
     // FIRST check that the connection is init.
-    if (gpio_device == NULL || spi_device == NULL) { // Should also ckeck that CC2500 is ON and not in sleep or off
-        ret = cc2500_init();
+    if (ctx->gpio_dev == NULL || ctx->spi_dev == NULL) { // Should also ckeck that CC2500 is ON and not in sleep or off
+        ret = cc2500_init(ctx);
     }
 
-    tx_data[0] = address;
-    bufcpy(tx_buf, tx_data + 1, tx_count);
-    tx_spi_buf.len = tx_count + 1;
+	struct spi_buf tx_spi_buf[2] = {
+		{
+			.buf = &address,
+			.len = 1,
+		},
+		{
+			.buf = tx_buf,
+			.len = tx_count,
+		}
+	};
 
-    // Should clear memory in rx buf? 
-    rx_spi_buf.len = rx_count + 1;
+	struct spi_buf_set tx_buf_set = {
+		.buffers = tx_spi_buf,
+        .count = 2,
+	};
 
-    ret = cc2500_execute_transceive();
+    u8_t status_byte;
+    struct spi_buf rx_spi_buf[2] = {
+        {
+            .buf = &status_byte,
+            .len = 1,
+        },
+        {
+            .buf = rx_buf,
+            .len = rx_count,
+        }
+    };
 
-    bufcpy(rx_data + 1, rx_buf, rx_count);
+    struct spi_buf_set rx_buf_set = {
+        .buffers = rx_spi_buf,
+        .count = 2,
+    };
+
+    // Pull CSn low to initiate transfer
+    ret = gpio_pin_write(ctx->gpio_dev, SPI_CS_PIN, 0);
+    if (ret) { printk("Error set pin %d!\n", SPI_CS_PIN); }
+
+
+    ret = spi_transceive(ctx->spi_dev, &(ctx->spi_conf), &tx_buf_set, &rx_buf_set);
+    if (ret != 0) {
+        printk("An error occured during SPI transmission: %d\n", ret);
+    }
+    
+    ret = gpio_pin_write(ctx->gpio_dev, SPI_CS_PIN, 1);
+    if (ret != 0) {
+            printk("Error set pin %d!\n", SPI_CS_PIN);
+    }
 
     if (status != NULL) {
-        *status = rx_data[0];
+        *status = status_byte;
     }
 
     return 0;
 }
 
-int cc2500_register_gdo0_handler(InterruptHandler handler)
+int cc2500_register_gdo0_handler(cc2500_ctx_t *ctx, InterruptHandler handler)
 {
     gdo0_handler = handler;
-    return gpio_pin_enable_callback(gpio_device, GDO0_PIN);
+    return gpio_pin_enable_callback(ctx->gpio_dev, GDO0_PIN);
 }
 
-int cc2500_register_gdo2_handler(InterruptHandler handler)
+int cc2500_register_gdo2_handler(cc2500_ctx_t *ctx, InterruptHandler handler)
 {
     gdo2_handler = handler;
-    return gpio_pin_enable_callback(gpio_device, GDO2_PIN);
+    return gpio_pin_enable_callback(ctx->gpio_dev, GDO2_PIN);
 }

@@ -3,6 +3,16 @@
 
 #include <zephyr.h>
 
+typedef struct device device_t;
+typedef struct gpio_callback gpio_callback_t;
+
+typedef struct spi_buf spi_buf_t;
+typedef struct spi_buf_set spi_buf_set_t;
+typedef struct spi_config spi_config_t;
+
+typedef enum cc2500_mode {ON, SLEEP, OFF} cc2500_mode_t;
+typedef void (*InterruptHandler)(void);
+
 typedef struct cc2500_config {
     u8_t IOCFG1  ;
     u8_t IOCFG0  ;
@@ -68,19 +78,31 @@ typedef struct cc2500_packet {
     u8_t LQI;
 } cc2500_packet_t;
 
+typedef struct cc2500_ctx {
+    device_t *gpio_dev;
+    device_t *spi_dev;
+    spi_config_t spi_conf;
+    
+    gpio_callback_t *gdo0_cb;
+    gpio_callback_t *gdo2_cb;
+
+    cc2500_mode_t mode;
+
+} cc2500_ctx_t;
+
 bool cc2500_verify_osc_stabilization();
 
-int cc2500_configure(cc2500_config_t *config);
+int cc2500_configure(cc2500_ctx_t *ctx, cc2500_config_t *config);
 
-int cc2500_reset();
+int cc2500_reset(cc2500_ctx_t *ctx);
 
-int cc2500_read_package();
+int cc2500_read_package(cc2500_ctx_t *ctx);
 
-int cc2500_mode_idle();
+int cc2500_mode_idle(cc2500_ctx_t *ctx);
 
-int cc2500_mode_receive(u8_t channel);
+int cc2500_mode_receive(cc2500_ctx_t *ctx, u8_t channel);
 
-int cc2500_flush_rxfifo();
+int cc2500_flush_rxfifo(cc2500_ctx_t *ctx);
 
 
 #endif /* CC2500_H */
