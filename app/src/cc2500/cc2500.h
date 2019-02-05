@@ -2,6 +2,7 @@
 #define CC2500_H
 
 #include <zephyr.h>
+#include <spi.h>
 
 typedef struct device device_t;
 typedef struct gpio_callback gpio_callback_t;
@@ -83,6 +84,8 @@ typedef struct cc2500_ctx {
     device_t *spi_dev;
     spi_config_t spi_conf;
     
+    int gdo0_pin;
+    int gdo2_pin;
     gpio_callback_t *gdo0_cb;
     gpio_callback_t *gdo2_cb;
 
@@ -90,7 +93,7 @@ typedef struct cc2500_ctx {
 
 } cc2500_ctx_t;
 
-bool cc2500_verify_osc_stabilization();
+bool cc2500_verify_osc_stabilization(cc2500_ctx_t *ctx);
 
 int cc2500_configure(cc2500_ctx_t *ctx, cc2500_config_t *config);
 
