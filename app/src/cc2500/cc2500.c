@@ -7,7 +7,7 @@
 
 #define NUM_CHANNELS 4
 static u8_t nChannels[NUM_CHANNELS] = { 0, 100, 199, 209 };
-static u8_t fOffset[NUM_CHANNELS] = {0xe4, 0xe3, 0xe2, 0xe2};
+static u8_t fOffset[NUM_CHANNELS] = {0xFD, 0xFD, 0xFD, 0xFD};
 
 
 bool cc2500_verify_osc_stabilization(cc2500_ctx_t *ctx)
@@ -17,7 +17,7 @@ bool cc2500_verify_osc_stabilization(cc2500_ctx_t *ctx)
 
 	do {
 		cc2500_read_status_byte(ctx, &status);
-        
+
 		k_busy_wait(100);
 		timeout--;
 	} while (((status & 0x80) == 0x80) && timeout);
