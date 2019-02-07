@@ -41,7 +41,7 @@ int cc2500_set_mode(cc2500_ctx_t *ctx, u8_t mode, u8_t checksum){
             return ret;
         }
         //printk("MARCSTATE: 0x%02X\n", marcstate);
-        if ((marcstate & (u8_t)0x0F) == checksum) {
+        if ((marcstate & (u8_t)0x1F) == checksum) {
             return 0;
         }
 
