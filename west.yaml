@@ -1,0 +1,31 @@
+west:
+  url: https://github.com/zephyrproject-rtos/west
+  revision: master
+
+manifest:
+  defaults:
+    remote: zephyr-base
+
+  remotes:
+    - name: project-base
+      url-base: https://github.com/SindreSB/zephyr_nrf_bridge
+    - name: zephyr-base
+      url-base: https://github.com/zephyrproject-rtos
+
+  # The initial list of external projects is just Zephyr's net-tools
+  # repository, which is useful for running the Zephyr networking
+  # stack in QEMU.
+  #
+  # This will grow over time as external code is migrated into its own
+  # repositories.
+  projects:
+    - name: zephyr
+      revision: master
+      west-commands: scripts/west-commands.yml
+
+    - name: net-tools
+      revision: 30b7efa827b04d2e47840716b0372737fe7d6c92
+
+  self:
+    path: app
+    
