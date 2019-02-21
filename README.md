@@ -6,7 +6,12 @@ Highly WIP, and not at all working
 This repo contains a west manifest file, which enables this to be a manifest repo when using the west tool.
 
 Steps to get up and running:
-1. Follow install guide for zephyr/west 
-1. Create a folder to hold the project and zephyr etc
-1. Insted of running west init, use west init -m \<url to this repo>
-1. Use west build with the propper arguments and -s zephyr_nrf_bridge/app
+1. Follow install guide for zephyr/west
+1. Clone this repo 
+1. Set the variables:
+    * ZEPHYR_BASE=\<path to zephyr>
+    * ZEPHYR_TOOLCHAIN_VARIANT=gnuarmemb
+    * GNUARMEMB_TOOLCHAIN_PATH=\<path to gnu>
+1. cd into the app directory
+1. Use west build with the propper arguments and -s .
+    * west build -b nrf52_pca10040 -s .
