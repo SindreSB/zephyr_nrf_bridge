@@ -1,5 +1,6 @@
 
 #include <zephyr.h>
+#include <logging/log.h>
 #include <misc/printk.h>
 
 #include <device.h>
@@ -12,15 +13,13 @@
 
 // Does this work for NRF52 -yes, but not general enough?
 #define GPIO_OUT_DRV_NAME "GPIO_0"
-#define SPI_DRV_NAME SPI_2_LABEL
+#define SPI_DRV_NAME "SPI_2"
 #define SPI_CS_PIN 17
-// #define SPI_2_LABEL					    DT_NORDIC_NRF_SPI_40023000_LABEL
-// #define SPI_2_MISO_PIN					DT_NORDIC_NRF_SPI_40023000_MISO_PIN
-// #define SPI_2_MOSI_PIN					DT_NORDIC_NRF_SPI_40023000_MOSI_PIN
-// #define SPI_2_SCK_PIN					DT_NORDIC_NRF_SPI_40023000_SCK_PIN
 
 #define GDO0_PIN 30
 #define GDO2_PIN 31
+
+LOG_MODULE_REGISTER(cc2500_spi);
 
 
 // Forward declare private functions
@@ -45,7 +44,7 @@ int cc2500_read_register(cc2500_ctx_t *ctx, u8_t address, u8_t *value, u8_t *sta
 
 int cc2500_read_burst(cc2500_ctx_t *ctx, u8_t address, u8_t *buffer, int count, u8_t *status)
 {
-    return cc2500_transceive(ctx, CC2500_OFF_READ_BURST | address, buffer, count, NULL, 0, status);
+    return cc2500_transceive(ctx, CC2500_OFF_READ_BURST | address, NULL, 0, buffer, count, status);
 }
 
 int cc2500_read_status_byte(cc2500_ctx_t *ctx, u8_t *status)
@@ -63,8 +62,6 @@ int cc2500_read_status_reg(cc2500_ctx_t *ctx, u8_t address, u8_t *value, u8_t *s
 int cc2500_init(cc2500_ctx_t *ctx)
 {
     printk("SPI driver name: %s\n", SPI_DRV_NAME);
-    printk("SCK: %d, MISO: %d, MOSI: %d, CSn: %d\n", SPI_2_SCK_PIN, SPI_2_MISO_PIN, SPI_2_MOSI_PIN, SPI_CS_PIN);
-
     int ret = 0;
 
     // Get output driver

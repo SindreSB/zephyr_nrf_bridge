@@ -1,8 +1,11 @@
 #include <zephyr.h>
+#include <logging/log.h>
 
 #include "cc2500_reg.h"
 #include "cc2500_spi.h"
 #include "cc2500.h"
+
+LOG_MODULE_REGISTER(cc2500);
 
 
 #define NUM_CHANNELS 4
@@ -18,7 +21,7 @@ bool cc2500_verify_osc_stabilization(cc2500_ctx_t *ctx)
 	do {
 		cc2500_read_status_byte(ctx, &status);
 
-		k_busy_wait(100);
+		k_sleep(100);
 		timeout--;
 	} while (((status & 0x80) == 0x80) && timeout);
 
@@ -26,7 +29,7 @@ bool cc2500_verify_osc_stabilization(cc2500_ctx_t *ctx)
 }
 
 int cc2500_set_mode(cc2500_ctx_t *ctx, u8_t mode, u8_t checksum){
-    //printk("Setting mode: 0x%02X, with checksum: 0x%02X\n", mode, checksum);
+    //LOG_INF("Setting mode: 0x%02X, with checksum: 0x%02X\n", mode, checksum);
 
     int ret = 0;
     u8_t timeout = 100U;
@@ -37,20 +40,20 @@ int cc2500_set_mode(cc2500_ctx_t *ctx, u8_t mode, u8_t checksum){
     while(timeout != 0) {
         ret = cc2500_read_status_reg(ctx, CC2500_REG_MARCSTATE, &marcstate, &state);
         if (ret != 0) {
-            printk("An error occured reading register MARCSTATE\n");
+            LOG_INF("An error occured reading register MARCSTATE");
             return ret;
         }
-        //printk("MARCSTATE: 0x%02X\n", marcstate);
+        //LOG_INF("MARCSTATE: 0x%02X\n", marcstate);
         if ((marcstate & (u8_t)0x1F) == checksum) {
             return 0;
         }
 
-        k_busy_wait(10);
+        k_sleep(100);
         timeout--;
     }
     
     if (timeout == 0 || ret != 0) {
-        printk("Set mode timed out, ret: %d\n", ret);
+        LOG_INF("Set mode timed out, ret: %d", ret);
         return ret ? -1 : ret;
     }
     

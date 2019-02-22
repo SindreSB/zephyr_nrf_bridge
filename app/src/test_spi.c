@@ -1,5 +1,6 @@
 #include <zephyr.h>
-#include <misc/printk.h>
+#include <logging/log.h>
+#include <logging/log_ctrl.h>
 
 //#include <autoconf.h>
 
@@ -24,6 +25,7 @@
 
 #define SEC_TO_TICK(sec) sec * 1200 // Trial and error, not accurate
 
+LOG_MODULE_REGISTER(test_cc2500);
 
 u8_t data_buffer[64];
 
@@ -38,44 +40,51 @@ cc2500_ctx_t cc_ctx = {
 
 static struct k_work work;
 
+volatile bool handeled_package = true;
 
 void read_package_from_cc(struct k_work *item)
 {
-    printk("GDO0 asserted, which indicates end of packet received\n");
+    handeled_package = true;
+    log_panic();
+
+    LOG_INF("GDO0 asserted, which indicates end of packet received");
 
     // Config should have put the device into idle mode at end of package
     // but just to be sure
     cc2500_mode_idle(&cc_ctx);
     
     u8_t rxbytes, status;
-    cc2500_read_register(&cc_ctx, CC2500_REG_RXBYTES, &rxbytes, &status);
+    cc2500_read_status_reg(&cc_ctx, CC2500_REG_RXBYTES, &rxbytes, &status);
 
-    printk("Status is: %02X, rxbytes is: %02X\n", status, rxbytes);
+    LOG_INF("Status is: %02X, rxbytes is: %02X", status, rxbytes);
 
     // If overflow, ignore it all and retry
     if ((rxbytes & 0x80)) { 
-        printk("Overflow in RX FIFO, ignore data\n");
+        LOG_INF("Overflow in RX FIFO, ignore data");
         
     }
     else if ((rxbytes & 0x7F) > 0 && (status & 0x07) > 0) {
+        LOG_INF("RXBYTES is: %02X", rxbytes);   
         u8_t num_bytes_rx = rxbytes & 0x7F; // Mask bit 7, which is overflow
-        printk("%d bytes received\n", num_bytes_rx);
+        LOG_INF("%d bytes received", num_bytes_rx);
         
         cc2500_read_burst(&cc_ctx, CC2500_REG_RXFIFO, data_buffer, num_bytes_rx, NULL);
 
+        printk("Data received: ");
         int i;
         for(i = 0; i < num_bytes_rx; i++) {
             printk("%02X ", data_buffer[i]);
         }
+        printk("\n");
     }    
 
-    printk("Flushing RX FIFO\n");
+    LOG_INF("Flushing RX FIFO");
     cc2500_flush_rxfifo(&cc_ctx);
 
-    printk("Going back into RX mode\n");
+    LOG_INF("Going back into RX mode");
     cc2500_mode_receive(&cc_ctx, 0);
     
-    printk("Handler completed, listening...\n");
+    LOG_INF("Handler completed, listening...");
     return;
 }
 
@@ -83,6 +92,9 @@ void read_package_from_cc(struct k_work *item)
 void submit_package_read(struct device *gpiob, struct gpio_callback *cb,
 		    u32_t pins)
 {
+    if (!handeled_package) return;
+
+    LOG_INF("Submitting read package job");
     k_work_init(&work, read_package_from_cc);
     k_work_submit(&work);
 }
@@ -90,27 +102,27 @@ void submit_package_read(struct device *gpiob, struct gpio_callback *cb,
 
 void test_cc2500(void) 
 {
-    printk("Testing CC2500\n");
+    LOG_INF("Testing CC2500");
     u8_t value, status;
 
-    printk("Resetting CC2500\n");
+    LOG_INF("Resetting CC2500");
     cc2500_send_strobe(&cc_ctx, CC2500_CMD_SRES, &status);
 
-    printk("Asserting XTAL is stable\n");
+    LOG_INF("Asserting XTAL is stable");
     if(!cc2500_verify_osc_stabilization(&cc_ctx)) {
-        printk("CC2500 didn't become ready in time\n");
+        LOG_INF("CC2500 didn't become ready in time");
         return;
     }
     
-    printk("Reading off values to ensure CC2500 is working\n");
+    LOG_INF("Reading off values to ensure CC2500 is working");
     cc2500_read_status_reg(&cc_ctx, CC2500_REG_PARTNUM, &value, &status);
-    printk("Partnum: 0x%02X, should be 0x80\n", value);
+    LOG_INF("Partnum: 0x%02X, should be 0x80", value);
 
     cc2500_read_status_reg(&cc_ctx, CC2500_REG_VERSION, &value, &status);
-    printk("Version: 0x%02X, should be 0x03\n", value);
+    LOG_INF("Version: 0x%02X, should be 0x03", value);
 
     // Write required register values
-    printk("Writing Dexcom config to device\n");
+    LOG_INF("Writing Dexcom config to device");
     cc2500_write_register(&cc_ctx, CC2500_REG_PATABLE,      0x00, NULL);
     cc2500_write_register(&cc_ctx, CC2500_REG_IOCFG0,	    0x01, NULL);
     cc2500_write_register(&cc_ctx, CC2500_REG_PKTLEN,	    0xFF, NULL);
@@ -160,11 +172,11 @@ void test_cc2500(void)
     
     cc2500_write_register(&cc_ctx, CC2500_REG_BSCFG,	    0x6C, NULL);
 
-    printk("Registering callback for GDO0\n");
-    cc2500_register_gdo0_handler(&cc_ctx, submit_package_read, GPIO_INT_ACTIVE_HIGH);
+    LOG_INF("Registering callback for GDO0");
+    cc2500_register_gdo0_handler(&cc_ctx, submit_package_read, GPIO_INT_EDGE | GPIO_INT_ACTIVE_HIGH);
 
-    printk("Going into RX mode\n");
+    LOG_INF("Going into RX mode");
     cc2500_mode_receive(&cc_ctx, 0);
 
-    printk("All setup completed, listening...\n");
+    LOG_INF("All setup completed, listening...");
 }
