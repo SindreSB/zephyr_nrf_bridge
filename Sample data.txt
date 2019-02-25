@@ -1,0 +1,40 @@
+12 FFFFFFFF 7A376310BF03D30F1D2199D50098E738
+12 FFFFFFFF 3A376300 3F 03 D3 0F1D 2199 D5 00 98 EF30
+
+12 ff 7f ff ff 3a 37 62 00 3f 03 d1 0f 1d 21 99 d5 00 98 f9 2f
+
+Real data 12PM - 12PM 2/24/19:
+Data received: 12 ff ff ff 7f e3 e9 6a 04 3f 03 49 3f cd 11 49 d7 00 10 e9 47
+Data received: 12 df ff ff ff f3 ed 6a 00 bf 03 4c c4 ad 9e c9 d7 00 45 f8 2d
+Data received: 02 ff ff f9 1e
+Data received: 12 ff ff ff f9 f3 ed 6a 00 3f 83 e0 93 cd ad c9 c7 00 ca f7 34
+Data received: 12 fe ff ff df f3 ed 6a 00 3f 03 e4 73 cd 47 c9 d7 00 20 f9 21
+Data received: 12 ff ff ff ac d3 e5 4a 20 3f 02 6c 88 39 c2 41 d6 00 1d f9 3a
+Data received: 12 fb ff ff ff f2 ed 68 00 3f 03 74 a1 cd b7 fe d7 01 15 d8 33
+Data received: 12 ff ff ff ff f3 ed 62 00 3f 03 78 2c cc c7 89 98 00 8a d8 3f
+Data received: 12 ff ff ff ff f3 ed 6a 00 3f 03 84 d0 4d 82 89 d8 00 c8 d7 40
+Data received: 12 ff ff ff ff f3 ed 6a 00 3f 02 88 00 4d 76 49 c8 00 b7 d5 2b
+
+From Woot17
+Data received: 12 FF FF FF FF 3A 37 63 00 3F 03 ED 38 DD CA 39 D5 00 4D
+
+From decoding dexcom github (first byte added manually)
+Data received: 12 FF FF FF FF 15 1F 60 00 3F 02 11 29 29 9B DE D7 00 8B : ?.? FCS
+Data received: 12 ERROR
+Data received: 12 FF FF FF FF 11 1F 60 00 3F 03 57 4F 29 50 2E D7 00 C6 : 4.6
+Data received: 12 FF FF FF FF 11 1F 60 00 3F 03 5B C1 29 AE 2E D8 00 89 : 4.5
+Data received: 12 FF FF FF FF 11 1F 60 00 3F 03 5F C3 C9 B5 2E D7 00 7A : 4.3
+Data received: 12 FF FF FF FF 11 1F 60 00 3F 03 63 2A C9 B6 2E D7 00 EE : 4.2
+Data received: 12 FF FF FF FF 11 1F 60 00 3F 03 67 FA C9 5B CE D7 00 77 : 4.2
+Data received: 12 FF FF FF FF 11 1F 60 00 3F 03 6B 58 A9 51 CE D8 00 9E : 4.7
+Data received: 12 FF FF FF FF 11 1F 60 00 3F 03 6F 83 19 FC 2E D7 00 D8 : 4.4
+Data received: 12 FF FF FF FF 11 1F 60 00 3F 03 73 A5 B9 91 6E D8 00 9B : 5.0
+Data received: 12 FF FF FF FF 11 1F 60 00 37 03 77 7C 0D 5C 5E D7 00 58 : 6.0
+Data received: 12 FF FF FF FF 11 1F 60 00 3F 03 7B 75 0D 2C 7E D8 00 34 : 7.3
+Data received: 12 FF FF FF FF 11 1F 60 00 3F 03 7F 9B 4D E3 09 D7 00 21 : 8.3
+Data received: 12 FF FF FF FF 11 1F 60 00 3F 03 83 ED CD 90 49 D8 00 93 : 9.0
+Data received: 12 FF FF FF FF 11 1F 60 00 3F 03 87 EC 2D 50 C9 D7 00 DA : 9.6
+Data received: 12 FF FF FF FF 11 1F 60 00 3F 03 8B 3E 2D C7 C9 D8 00 6F : 10.1
+Data received: 12 FF FF FF FF 11 1F 60 00 3F 03 8F B5 2D 8E 29 D8 00 BD : 10.4
+Data received: 12 FF FF FF FF 11 1F 60 00 3F 03 93 20 AD 9D 29 D8 00 93 : ?
+Data received: 12 FF FF FF FF 11 1F 60 00 3F 03 97 5C AD 87 29 D8 00 7D : 10.9

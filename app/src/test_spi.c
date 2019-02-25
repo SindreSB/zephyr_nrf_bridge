@@ -12,6 +12,8 @@
 #include "cc2500/cc2500_reg.h"
 #include "cc2500/cc2500.h"
 
+#include "cc2500/utils.h"
+
 // Does this work for NRF52 -yes, but not general enough?
 #define GPIO_OUT_DRV_NAME "GPIO_0"
 #define GPIO_OUT_PIN  17
@@ -45,8 +47,6 @@ volatile bool handeled_package = true;
 void read_package_from_cc(struct k_work *item)
 {
     handeled_package = true;
-    log_panic();
-
     LOG_INF("GDO0 asserted, which indicates end of packet received");
 
     // Config should have put the device into idle mode at end of package
@@ -75,7 +75,19 @@ void read_package_from_cc(struct k_work *item)
         for(i = 0; i < num_bytes_rx; i++) {
             printk("%02X ", data_buffer[i]);
         }
+
+
+        uint16_t raw, filtered; 
+        raw = data_buffer[12] << 8 | data_buffer[12];
+        filtered = data_buffer[14] << 8 | data_buffer[15];
+        float rawMmol = isigToMmol(convertFloat(reverse16(raw)));
+        float filteredMmol = isigToMmol(convertFloat(reverse16(filtered)));
+
+
         printk("\n");
+        printk("Raw: %f\n", rawMmol);
+        printk("Fil: %f\n", filteredMmol);
+
     }    
 
     LOG_INF("Flushing RX FIFO");
