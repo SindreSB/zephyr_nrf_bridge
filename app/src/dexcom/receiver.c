@@ -8,11 +8,11 @@
 #include <gpio.h>
 #include <spi.h>
 
-#include "cc2500/cc2500_spi.h"
-#include "cc2500/cc2500_reg.h"
-#include "cc2500/cc2500.h"
+#include "../cc2500/cc2500_spi.h"
+#include "../cc2500/cc2500_reg.h"
+#include "../cc2500/cc2500.h"
 
-#include "cc2500/utils.h"
+#include "../cc2500/utils.h"
 
 // Does this work for NRF52 -yes, but not general enough?
 #define GPIO_OUT_DRV_NAME "GPIO_0"
@@ -40,13 +40,28 @@ cc2500_ctx_t cc_ctx = {
     .gdo2_cb = &cc_gdo2_cb,
 };
 
-static struct k_work work;
 
-volatile bool handeled_package = true;
+void process_dexcom_package(u8_t package_length) {
+    printk("Data received: ");
+    int i;
+    for(i = 0; i < package_length; i++) {
+        printk("%02X ", data_buffer[i]);
+    }
+
+
+    uint16_t raw, filtered; 
+    raw = data_buffer[12] << 8 | data_buffer[12];
+    filtered = data_buffer[14] << 8 | data_buffer[15];
+    int rawMmol = 10 * isigToMmol(convertFloat(reverse16(raw)));
+    int filteredMmol =10 * isigToMmol(convertFloat(reverse16(filtered)));
+
+    printk("\n");
+    printk("Raw: %d\n", rawMmol);
+    printk("Fil: %d\n", filteredMmol);
+}
 
 void read_package_from_cc(struct k_work *item)
 {
-    handeled_package = true;
     LOG_INF("GDO0 asserted, which indicates end of packet received");
 
     // Config should have put the device into idle mode at end of package
@@ -70,23 +85,7 @@ void read_package_from_cc(struct k_work *item)
         
         cc2500_read_burst(&cc_ctx, CC2500_REG_RXFIFO, data_buffer, num_bytes_rx, NULL);
 
-        printk("Data received: ");
-        int i;
-        for(i = 0; i < num_bytes_rx; i++) {
-            printk("%02X ", data_buffer[i]);
-        }
-
-
-        uint16_t raw, filtered; 
-        raw = data_buffer[12] << 8 | data_buffer[12];
-        filtered = data_buffer[14] << 8 | data_buffer[15];
-        float rawMmol = isigToMmol(convertFloat(reverse16(raw)));
-        float filteredMmol = isigToMmol(convertFloat(reverse16(filtered)));
-
-
-        printk("\n");
-        printk("Raw: %f\n", rawMmol);
-        printk("Fil: %f\n", filteredMmol);
+        process_dexcom_package(num_bytes_rx);
 
     }    
 
@@ -100,14 +99,11 @@ void read_package_from_cc(struct k_work *item)
     return;
 }
 
-
+K_WORK_DEFINE(work, read_package_from_cc);
 void submit_package_read(struct device *gpiob, struct gpio_callback *cb,
 		    u32_t pins)
 {
-    if (!handeled_package) return;
-
     LOG_INF("Submitting read package job");
-    k_work_init(&work, read_package_from_cc);
     k_work_submit(&work);
 }
 

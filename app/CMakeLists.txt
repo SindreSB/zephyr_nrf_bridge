@@ -7,5 +7,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS y)
 FILE(GLOB app_sources src/*.c )
 target_sources(app PRIVATE ${app_sources})
 
+FILE(GLOB dex_sources src/dexcom/*.c )
+target_sources(app PRIVATE ${dex_sources})
+
 FILE(GLOB cc_sources src/cc2500/*.c )
 target_sources(app PRIVATE ${cc_sources})
