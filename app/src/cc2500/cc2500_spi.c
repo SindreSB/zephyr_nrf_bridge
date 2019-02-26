@@ -22,43 +22,6 @@
 LOG_MODULE_REGISTER(cc2500_spi);
 
 
-// Forward declare private functions
-int cc2500_init(cc2500_ctx_t *ctx);
-int cc2500_transceive(cc2500_ctx_t *ctx, u8_t address, u8_t *tx_buf, u8_t tx_count, u8_t *rx_buf, u8_t rx_count, u8_t *status);
-
-
-int cc2500_send_strobe(cc2500_ctx_t *ctx, u8_t strobe, u8_t *status)
-{
-    return cc2500_transceive(ctx, CC2500_OFF_READ_SINGLE | strobe, NULL, 0, NULL, 0, status);
-}
-
-int cc2500_write_register(cc2500_ctx_t *ctx, u8_t address, u8_t value, u8_t *status)
-{
-    return cc2500_transceive(ctx, CC2500_OFF_WRITE_SINGLE | address, &value, 1, NULL, 0, status);
-}
-
-int cc2500_read_register(cc2500_ctx_t *ctx, u8_t address, u8_t *value, u8_t *status)
-{
-    return cc2500_transceive(ctx, CC2500_OFF_READ_SINGLE | address, NULL, 0, value, 1, status);
-}
-
-int cc2500_read_burst(cc2500_ctx_t *ctx, u8_t address, u8_t *buffer, int count, u8_t *status)
-{
-    return cc2500_transceive(ctx, CC2500_OFF_READ_BURST | address, NULL, 0, buffer, count, status);
-}
-
-int cc2500_read_status_byte(cc2500_ctx_t *ctx, u8_t *status)
-{
-    return cc2500_transceive(ctx, CC2500_OFF_READ_SINGLE | CC2500_CMD_SNOP, NULL, 0, NULL, 0, status);
-}
-
-
-int cc2500_read_status_reg(cc2500_ctx_t *ctx, u8_t address, u8_t *value, u8_t *status)
-{
-    return cc2500_transceive(ctx, CC2500_OFF_READ_BURST | address, NULL, 0, value, 1, status);
-}
-
-
 int cc2500_init(cc2500_ctx_t *ctx)
 {
     printk("SPI driver name: %s\n", SPI_DRV_NAME);
