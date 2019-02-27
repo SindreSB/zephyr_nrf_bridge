@@ -13,6 +13,7 @@
 #include "../cc2500/cc2500.h"
 
 #include "../cc2500/utils.h"
+#include "utils.h"
 
 // Does this work for NRF52 -yes, but not general enough?
 #define GPIO_OUT_DRV_NAME "GPIO_0"
@@ -48,16 +49,28 @@ void process_dexcom_package(u8_t package_length) {
         printk("%02X ", data_buffer[i]);
     }
 
+    // Check first byte, which is package length
+    if (data_buffer[0] != 18) {
+        LOG_INF("Package length issue");
+        return;
+    }
 
-    uint16_t raw, filtered; 
-    raw = data_buffer[12] << 8 | data_buffer[12];
-    filtered = data_buffer[14] << 8 | data_buffer[15];
-    int rawMmol = 10 * isigToMmol(convertFloat(reverse16(raw)));
-    int filteredMmol =10 * isigToMmol(convertFloat(reverse16(filtered)));
+    // Check package CRC
+
+    // Check payload CRC
+    u8_t crc = compute_crc8_simple(0x2F, &(data_buffer[12]), 7);
+    if (crc != 0x00) {
+        LOG_INF("CRC failed for payload");
+        return;
+    }
+
+    uint16_t raw, filtered;
+    raw = extractISIG(data_buffer + 12);
+    filtered = extractISIG(data_buffer + 14);
 
     printk("\n");
-    printk("Raw: %d\n", rawMmol);
-    printk("Fil: %d\n", filteredMmol);
+    printk("Raw: %d\n", raw);
+    printk("Fil: %d\n", filtered);
 }
 
 void read_package_from_cc(struct k_work *item)
