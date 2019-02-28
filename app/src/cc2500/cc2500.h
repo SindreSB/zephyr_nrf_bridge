@@ -50,6 +50,7 @@ int cc2500_reset(cc2500_ctx_t *ctx);
 int cc2500_read_package(cc2500_ctx_t *ctx);
 
 int cc2500_mode_idle(cc2500_ctx_t *ctx);
+int cc2500_mode_off(cc2500_ctx_t *ctx);
 
 int cc2500_mode_receive(cc2500_ctx_t *ctx, u8_t channel);
 

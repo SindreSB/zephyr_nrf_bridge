@@ -131,25 +131,25 @@ int cc2500_transceive(cc2500_ctx_t *ctx, u8_t address, u8_t *tx_buf, u8_t tx_cou
     return 0;
 }
 
-int cc2500_register_gdo0_handler(cc2500_ctx_t *ctx, gpio_callback_handler_t handler, u8_t edge)
+
+int cc2500_register_handler(cc2500_ctx_t *ctx, int pin, gpio_callback_t *cb, gpio_callback_handler_t handler, u8_t edge)
 {
     int ret;
-    // Configure interrupt on GDO0 and GDO2
-    ret = gpio_pin_configure(ctx->gpio_dev, ctx->gdo0_pin, (GPIO_DIR_IN | GPIO_INT | edge));
+    ret = gpio_pin_configure(ctx->gpio_dev, pin, (GPIO_DIR_IN | GPIO_INT | edge));
     if (ret != 0) {
         printk("Error configuring pin %d!\n", GDO0_PIN);
         return ret;
     }
 
-    gpio_init_callback(ctx->gdo0_cb, handler, BIT(ctx->gdo0_pin));
+    gpio_init_callback(cb, handler, BIT(pin));
 
-    ret = gpio_add_callback(ctx->gpio_dev, ctx->gdo0_cb);
+    ret = gpio_add_callback(ctx->gpio_dev, cb);
     if (ret) {
         printk("Error adding callback to GDO0\n");
         return ret;
     }
 
-    ret = gpio_pin_enable_callback(ctx->gpio_dev, ctx->gdo0_pin);
+    ret = gpio_pin_enable_callback(ctx->gpio_dev, pin);
     if (ret) {
         printk("Error enabling callback to GDO0\n");
         return ret;
@@ -158,21 +158,12 @@ int cc2500_register_gdo0_handler(cc2500_ctx_t *ctx, gpio_callback_handler_t hand
     return ret;
 }
 
+int cc2500_register_gdo0_handler(cc2500_ctx_t *ctx, gpio_callback_handler_t handler, u8_t edge)
+{
+    return cc2500_register_handler(ctx, ctx->gdo0_pin, ctx->gdo0_cb, handler, edge);   
+}
+
 int cc2500_register_gdo2_handler(cc2500_ctx_t *ctx, gpio_callback_handler_t handler, u8_t edge)
 {
-    int ret;
-    // Configure interrupt on GDO0 and GDO2
-    ret = gpio_pin_configure(ctx->gpio_dev, ctx->gdo2_pin, (GPIO_DIR_IN | GPIO_INT | edge));
-    if (ret != 0) {
-        printk("Error configuring pin %d!\n", ctx->gdo2_pin);
-        return ret;
-    }
-
-    gpio_init_callback(ctx->gdo2_cb, handler, BIT(ctx->gdo2_pin));
-
-    ret = gpio_add_callback(ctx->gpio_dev, ctx->gdo2_cb);
-
-    ret = gpio_pin_enable_callback(ctx->gpio_dev, ctx->gdo2_pin);
-
-    return ret;
+    return cc2500_register_handler(ctx, ctx->gdo2_pin, ctx->gdo2_cb, handler, edge);
 }

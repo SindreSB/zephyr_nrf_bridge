@@ -16,45 +16,169 @@
 #include "receiver.h"
 #include "utils.h"
 
-
-// Does this work for NRF52 -yes, but not general enough?
-#define GPIO_OUT_DRV_NAME "GPIO_0"
-#define GPIO_OUT_PIN  17
-
-#define SPI_DRV_NAME SPI_2_LABEL
-#define SPI_CS_PIN 12
-// #define SPI_2_LABEL					    DT_NORDIC_NRF_SPI_40023000_LABEL
-// #define SPI_2_MISO_PIN					DT_NORDIC_NRF_SPI_40023000_MISO_PIN
-// #define SPI_2_MOSI_PIN					DT_NORDIC_NRF_SPI_40023000_MOSI_PIN
-// #define SPI_2_SCK_PIN					DT_NORDIC_NRF_SPI_40023000_SCK_PIN
-
-#define SEC_TO_TICK(sec) sec * 1200 // Trial and error, not accurate
-
 LOG_MODULE_REGISTER(dex_receiver);
 
+// Hack to that the interrupt handler gets access to the handler
 dexcom_ctx_t* receiver_context;
 
-u8_t bytes_in_buffer;
-u8_t data_buffer[64];
-
-// This will have to be replaced by a macro
-// Replace cc_ with a given prefix
-static gpio_callback_t cc_gdo0_cb;
-static gpio_callback_t cc_gdo2_cb;
-cc2500_ctx_t cc_ctx = {
-    .gdo0_cb = &cc_gdo0_cb,
-    .gdo2_cb = &cc_gdo2_cb,
-};
+// Forward declare internal functions
+void process_rx_data(u8_t *buffer, u8_t length);
+void read_data_from_cc2500(struct k_work *item);
+void submit_package_read(device_t *gpiob, gpio_callback_t *cb, u32_t pins);
+void handle_dexcom_event(dexcom_ctx_t *ctx, dexcom_event_t event);
+int configure_cc2500(dexcom_ctx_t *ctx);
 
 
-void process_rx_data(u8_t *buffer, u8_t length) {
+void start_cc2500(dexcom_ctx_t *ctx) {
+    // Hack before I can pass context  to interrupt handler
+    receiver_context = ctx;
+
+    // First configure the cc2500
+    int ret;
+    ret = configure_cc2500(ctx);
+    if (ret) {
+        LOG_ERR("Unable to start CC2500");
+        return;
+    }
+
+    // Set up callback for package received
+    cc2500_register_gdo0_handler(ctx->cc_ctx, submit_package_read, GPIO_INT_EDGE | GPIO_INT_ACTIVE_HIGH);
+    
+    // Go into receive on channel 0
+    ctx->current_channel = 0;
+    cc2500_mode_receive(ctx->cc_ctx, ctx->current_channel);
+}
+
+/**
+ * @brief Configure the CC2500 for receiving values from a G4
+ * 
+ * @param ctx 
+ */
+int configure_cc2500(dexcom_ctx_t *ctx) 
+{
+    LOG_INF("Asserting XTAL is stable");
+    if(!cc2500_verify_osc_stabilization(receiver_context->cc_ctx)) {
+        LOG_INF("CC2500 didn't become ready in time");
+        return -1;
+    }
+    
+    u8_t value, status;
+
+    LOG_INF("Reading off values to ensure CC2500 is working");
+    cc2500_read_status_reg(receiver_context->cc_ctx, CC2500_REG_PARTNUM, &value, &status);
+    LOG_INF("Partnum: 0x%02X, should be 0x80", value);
+
+    cc2500_read_status_reg(receiver_context->cc_ctx, CC2500_REG_VERSION, &value, &status);
+    LOG_INF("Version: 0x%02X, should be 0x03", value);
+
+    // Write required register values
+    LOG_INF("Writing Dexcom config to device");
+    cc2500_write_register(receiver_context->cc_ctx, CC2500_REG_PATABLE,     0x00, NULL);
+    cc2500_write_register(receiver_context->cc_ctx, CC2500_REG_IOCFG0,	    0x01, NULL);
+    cc2500_write_register(receiver_context->cc_ctx, CC2500_REG_PKTLEN,	    0xFF, NULL);
+    cc2500_write_register(receiver_context->cc_ctx, CC2500_REG_PKTCTRL1,	0x04, NULL);
+    cc2500_write_register(receiver_context->cc_ctx, CC2500_REG_PKTCTRL0,	0x05, NULL);
+    cc2500_write_register(receiver_context->cc_ctx, CC2500_REG_ADDR,	    0x00, NULL);
+    cc2500_write_register(receiver_context->cc_ctx, CC2500_REG_CHANNR,	    0x00, NULL);
+
+    cc2500_write_register(receiver_context->cc_ctx, CC2500_REG_FSCTRL1,	    0x0F, NULL);
+    cc2500_write_register(receiver_context->cc_ctx, CC2500_REG_FSCTRL0,	    0x00, NULL);
+    
+    cc2500_write_register(receiver_context->cc_ctx, CC2500_REG_FREQ2,	    0x5D, NULL);
+    cc2500_write_register(receiver_context->cc_ctx, CC2500_REG_FREQ1,	    0x44, NULL);
+    cc2500_write_register(receiver_context->cc_ctx, CC2500_REG_FREQ0,	    0xEB, NULL);
+    
+    cc2500_write_register(receiver_context->cc_ctx, CC2500_REG_FREND1,	    0xB6, NULL);
+    cc2500_write_register(receiver_context->cc_ctx, CC2500_REG_FREND0,	    0x10, NULL);
+    
+    cc2500_write_register(receiver_context->cc_ctx, CC2500_REG_MDMCFG4,	    0x7A, NULL);
+    cc2500_write_register(receiver_context->cc_ctx, CC2500_REG_MDMCFG3,	    0xF8, NULL);
+    cc2500_write_register(receiver_context->cc_ctx, CC2500_REG_MDMCFG2,	    0x73, NULL);
+    cc2500_write_register(receiver_context->cc_ctx, CC2500_REG_MDMCFG1,	    0x23, NULL);
+    cc2500_write_register(receiver_context->cc_ctx, CC2500_REG_MDMCFG0,	    0x3B, NULL);
+    
+    cc2500_write_register(receiver_context->cc_ctx, CC2500_REG_DEVIATN,	    0x40, NULL);
+    
+    cc2500_write_register(receiver_context->cc_ctx, CC2500_REG_MCSM2,	    0x07, NULL);
+    cc2500_write_register(receiver_context->cc_ctx, CC2500_REG_MCSM1, 	    0x30, NULL);
+    cc2500_write_register(receiver_context->cc_ctx, CC2500_REG_MCSM0,	    0x18, NULL);
+    
+    cc2500_write_register(receiver_context->cc_ctx, CC2500_REG_FOCCFG,	    0x16, NULL);
+    
+    cc2500_write_register(receiver_context->cc_ctx, CC2500_REG_FSCAL3,	    0xA9, NULL);
+    cc2500_write_register(receiver_context->cc_ctx, CC2500_REG_FSCAL2,	    0x0A, NULL);
+    cc2500_write_register(receiver_context->cc_ctx, CC2500_REG_FSCAL1,	    0x00, NULL);
+    cc2500_write_register(receiver_context->cc_ctx, CC2500_REG_FSCAL0,	    0x11, NULL);
+    
+    cc2500_write_register(receiver_context->cc_ctx, CC2500_REG_AGCCTRL2,    0x03, NULL);
+    cc2500_write_register(receiver_context->cc_ctx, CC2500_REG_AGCCTRL1,    0x00, NULL);
+    cc2500_write_register(receiver_context->cc_ctx, CC2500_REG_AGCCTRL0,    0x91, NULL);
+    
+    cc2500_write_register(receiver_context->cc_ctx, CC2500_REG_TEST2,	    0x81, NULL);
+    cc2500_write_register(receiver_context->cc_ctx, CC2500_REG_TEST1,	    0x35, NULL);
+    cc2500_write_register(receiver_context->cc_ctx, CC2500_REG_TEST0,	    0x0B, NULL);
+    
+    cc2500_write_register(receiver_context->cc_ctx, CC2500_REG_FOCCFG,	    0x0A, NULL);
+    
+    cc2500_write_register(receiver_context->cc_ctx, CC2500_REG_BSCFG,	    0x6C, NULL);
+
+    LOG_INF("All setup completed");
+    return 0;
+}
+
+
+
+void handle_dexcom_event(dexcom_ctx_t *ctx, dexcom_event_t event)
+{
+    if (event.type == DE_PACKAGE_RECEIVED) {
+        // Package received -> put in package fifo
+        k_fifo_alloc_put(receiver_context->package_queue, (dexcom_package_t *) event.data);
+
+        // For now, go back into receive
+        cc2500_mode_receive(ctx->cc_ctx, 0);
+
+    }
+    else if (event.type == DE_PACKAGE_INVALID) 
+    {
+        // For now, go back into receive
+        cc2500_mode_receive(ctx->cc_ctx, 0);
+    }
+    else if (event.type == DE_SLEEP_TIMEOUT)
+    {
+        // We need to configure CC again
+        configure_cc2500(ctx);
+
+        // Go into receive
+        ctx->current_channel = 0;
+        cc2500_mode_receive(ctx->cc_ctx, 0);
+    }
+    else if (event.type == DE_CHANNEL_TIMEOUT) 
+    {
+        // Go to next channel
+        ctx->current_channel++;
+        // Go into receive
+        cc2500_mode_receive(ctx->cc_ctx, ctx->current_channel);
+    }
+}
+
+
+
+
+
+
+
+
+
+
+void process_rx_data(u8_t *buffer, u8_t length) 
+{
     u8_t current_byte = 0;
     while(current_byte < length){
         // Check first byte, which is package length and that there are enough bytes left
         if (buffer[current_byte] != 18 || (current_byte + 18) >= length) {
             LOG_INF("Package length issue");
-            current_byte = length;
-            return;
+            current_byte += buffer[current_byte]; // Add the assumed package length we now ignored
+            continue;
         }
 
         // TODO: Check package CRC
@@ -78,10 +202,24 @@ void process_rx_data(u8_t *buffer, u8_t length) {
         package_ptr->filIsig = extractISIG(buffer + current_byte + 14);
         package_ptr->batLevel = 0;
 
-        k_fifo_alloc_put(receiver_context->package_queue, package_ptr);
+        // Ignore rest of buffer
+        current_byte = length;
 
-        current_byte +=18;
-    }  
+        dexcom_event_t event = {
+            .type = DE_PACKAGE_RECEIVED,
+            .data = package_ptr
+        };
+        
+        handle_dexcom_event(receiver_context, event);
+        return;
+    }
+    
+    dexcom_event_t event = {
+        .type = DE_PACKAGE_INVALID
+    };
+
+    handle_dexcom_event(receiver_context, event);  
+    return;
 }
 
 void read_data_from_cc2500(struct k_work *item)
@@ -90,36 +228,29 @@ void read_data_from_cc2500(struct k_work *item)
 
     // Config should have put the device into idle mode at end of package
     // but just to be sure
-    cc2500_mode_idle(&cc_ctx);
+    cc2500_mode_idle(receiver_context->cc_ctx);
     
     u8_t rxbytes, status;
-    cc2500_read_status_reg(&cc_ctx, CC2500_REG_RXBYTES, &rxbytes, &status);
+    cc2500_read_status_reg(receiver_context->cc_ctx, CC2500_REG_RXBYTES, &rxbytes, &status);
 
     LOG_INF("Status is: %02X, rxbytes is: %02X", status, rxbytes);
 
+    int success;
     // If overflow, ignore it all and retry
     if ((rxbytes & 0x80)) { 
         LOG_INF("Overflow in RX FIFO, ignore data");
-        
+        success = 0;
     }
     else if ((rxbytes & 0x7F) > 0 && (status & 0x07) > 0) {
         LOG_INF("RXBYTES is: %02X", rxbytes);   
         u8_t num_bytes_rx = rxbytes & 0x7F; // Mask bit 7, which is overflow
         LOG_INF("%d bytes received", num_bytes_rx);
         
-        cc2500_read_burst(&cc_ctx, CC2500_REG_RXFIFO, data_buffer, num_bytes_rx, NULL);
+        cc2500_read_burst(receiver_context->cc_ctx, CC2500_REG_RXFIFO, receiver_context->data_buffer, num_bytes_rx, NULL);
 
-        process_rx_data(data_buffer, num_bytes_rx);
-
+        process_rx_data(receiver_context->data_buffer, num_bytes_rx);
     }    
 
-    LOG_INF("Flushing RX FIFO");
-    cc2500_flush_rxfifo(&cc_ctx);
-
-    LOG_INF("Going back into RX mode");
-    cc2500_mode_receive(&cc_ctx, 0);
-    
-    LOG_INF("Handler completed, listening...");
     return;
 }
 
@@ -129,88 +260,4 @@ void submit_package_read(struct device *gpiob, struct gpio_callback *cb,
 {
     LOG_INF("Submitting read package job");
     k_work_submit(&work);
-}
-
-
-void test_cc2500(dexcom_ctx_t *dex_ctx) 
-{
-    receiver_context = dex_ctx;
-
-    LOG_INF("Testing CC2500");
-    u8_t value, status;
-
-    LOG_INF("Resetting CC2500");
-    cc2500_send_strobe(&cc_ctx, CC2500_CMD_SRES, &status);
-
-    LOG_INF("Asserting XTAL is stable");
-    if(!cc2500_verify_osc_stabilization(&cc_ctx)) {
-        LOG_INF("CC2500 didn't become ready in time");
-        return;
-    }
-    
-    LOG_INF("Reading off values to ensure CC2500 is working");
-    cc2500_read_status_reg(&cc_ctx, CC2500_REG_PARTNUM, &value, &status);
-    LOG_INF("Partnum: 0x%02X, should be 0x80", value);
-
-    cc2500_read_status_reg(&cc_ctx, CC2500_REG_VERSION, &value, &status);
-    LOG_INF("Version: 0x%02X, should be 0x03", value);
-
-    // Write required register values
-    LOG_INF("Writing Dexcom config to device");
-    cc2500_write_register(&cc_ctx, CC2500_REG_PATABLE,      0x00, NULL);
-    cc2500_write_register(&cc_ctx, CC2500_REG_IOCFG0,	    0x01, NULL);
-    cc2500_write_register(&cc_ctx, CC2500_REG_PKTLEN,	    0xFF, NULL);
-    cc2500_write_register(&cc_ctx, CC2500_REG_PKTCTRL1,	    0x04, NULL);
-    cc2500_write_register(&cc_ctx, CC2500_REG_PKTCTRL0,	    0x05, NULL);
-    cc2500_write_register(&cc_ctx, CC2500_REG_ADDR,	        0x00, NULL);
-    cc2500_write_register(&cc_ctx, CC2500_REG_CHANNR,	    0x00, NULL);
-
-    cc2500_write_register(&cc_ctx, CC2500_REG_FSCTRL1,	    0x0F, NULL);
-    cc2500_write_register(&cc_ctx, CC2500_REG_FSCTRL0,	    0x00, NULL);
-    
-    cc2500_write_register(&cc_ctx, CC2500_REG_FREQ2,	    0x5D, NULL);
-    cc2500_write_register(&cc_ctx, CC2500_REG_FREQ1,	    0x44, NULL);
-    cc2500_write_register(&cc_ctx, CC2500_REG_FREQ0,	    0xEB, NULL);
-    
-    cc2500_write_register(&cc_ctx, CC2500_REG_FREND1,	    0xB6, NULL);
-    cc2500_write_register(&cc_ctx, CC2500_REG_FREND0,	    0x10, NULL);
-    
-    cc2500_write_register(&cc_ctx, CC2500_REG_MDMCFG4,	    0x7A, NULL);
-    cc2500_write_register(&cc_ctx, CC2500_REG_MDMCFG3,	    0xF8, NULL);
-    cc2500_write_register(&cc_ctx, CC2500_REG_MDMCFG2,	    0x73, NULL);
-    cc2500_write_register(&cc_ctx, CC2500_REG_MDMCFG1,	    0x23, NULL);
-    cc2500_write_register(&cc_ctx, CC2500_REG_MDMCFG0,	    0x3B, NULL);
-    
-    cc2500_write_register(&cc_ctx, CC2500_REG_DEVIATN,	    0x40, NULL);
-    
-    cc2500_write_register(&cc_ctx, CC2500_REG_MCSM2,	    0x07, NULL);
-    cc2500_write_register(&cc_ctx, CC2500_REG_MCSM1, 	    0x30, NULL);
-    cc2500_write_register(&cc_ctx, CC2500_REG_MCSM0,	    0x18, NULL);
-    
-    cc2500_write_register(&cc_ctx, CC2500_REG_FOCCFG,	    0x16, NULL);
-    
-    cc2500_write_register(&cc_ctx, CC2500_REG_FSCAL3,	    0xA9, NULL);
-    cc2500_write_register(&cc_ctx, CC2500_REG_FSCAL2,	    0x0A, NULL);
-    cc2500_write_register(&cc_ctx, CC2500_REG_FSCAL1,	    0x00, NULL);
-    cc2500_write_register(&cc_ctx, CC2500_REG_FSCAL0,	    0x11, NULL);
-    
-    cc2500_write_register(&cc_ctx, CC2500_REG_AGCCTRL2,	    0x03, NULL);
-    cc2500_write_register(&cc_ctx, CC2500_REG_AGCCTRL1,	    0x00, NULL);
-    cc2500_write_register(&cc_ctx, CC2500_REG_AGCCTRL0,	    0x91, NULL);
-    
-    cc2500_write_register(&cc_ctx, CC2500_REG_TEST2,	    0x81, NULL);
-    cc2500_write_register(&cc_ctx, CC2500_REG_TEST1,	    0x35, NULL);
-    cc2500_write_register(&cc_ctx, CC2500_REG_TEST0,	    0x0B, NULL);
-    
-    cc2500_write_register(&cc_ctx, CC2500_REG_FOCCFG,	    0x0A, NULL);
-    
-    cc2500_write_register(&cc_ctx, CC2500_REG_BSCFG,	    0x6C, NULL);
-
-    LOG_INF("Registering callback for GDO0");
-    cc2500_register_gdo0_handler(&cc_ctx, submit_package_read, GPIO_INT_EDGE | GPIO_INT_ACTIVE_HIGH);
-
-    LOG_INF("Going into RX mode");
-    cc2500_mode_receive(&cc_ctx, 0);
-
-    LOG_INF("All setup completed, listening...");
 }

@@ -67,6 +67,13 @@ int cc2500_mode_idle(cc2500_ctx_t *ctx) {
     return 0;
 }
 
+int cc2500_mode_off(cc2500_ctx_t *ctx) {
+    // Send the SOFF strobe, do not try to read backe state
+    cc2500_send_strobe(ctx, CC2500_CMD_SXOFF, NULL);
+
+    return 0;
+}
+
 int cc2500_mode_receive(cc2500_ctx_t *ctx, u8_t channel){
     // Ensure we are in idle mode first
     cc2500_set_mode(ctx, CC2500_CMD_SIDLE, 0x01);
