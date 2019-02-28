@@ -11,9 +11,11 @@
 #include "../cc2500/cc2500_spi.h"
 #include "../cc2500/cc2500_reg.h"
 #include "../cc2500/cc2500.h"
-
 #include "../cc2500/utils.h"
+
+#include "receiver.h"
 #include "utils.h"
+
 
 // Does this work for NRF52 -yes, but not general enough?
 #define GPIO_OUT_DRV_NAME "GPIO_0"
@@ -30,6 +32,10 @@
 
 LOG_MODULE_REGISTER(test_cc2500);
 
+dexcom_ctx_t* receiver_context;
+
+
+u8_t bytes_in_buffer;
 u8_t data_buffer[64];
 
 // This will have to be replaced by a macro
@@ -42,38 +48,46 @@ cc2500_ctx_t cc_ctx = {
 };
 
 
-void process_dexcom_package(u8_t package_length) {
-    printk("Data received: ");
-    int i;
-    for(i = 0; i < package_length; i++) {
-        printk("%02X ", data_buffer[i]);
-    }
+void process_rx_data(u8_t *buffer, u8_t length) {
+    u8_t current_byte = 0;
+    while(current_byte < length){
+        // Check first byte, which is package length and that there are enough bytes left
+        if (buffer[current_byte] != 18 || (current_byte + 18) >= length) {
+            LOG_INF("Package length issue");
+            current_byte = length;
+            return;
+        }
 
-    // Check first byte, which is package length
-    if (data_buffer[0] != 18) {
-        LOG_INF("Package length issue");
-        return;
-    }
+        // TODO: Check package CRC
 
-    // Check package CRC
+        // Check payload CRC
+        u8_t crc = compute_crc8_simple(0x2F, buffer + current_byte + 12, 7);
+        if (crc != 0x00) {
+            LOG_INF("CRC failed for payload");
+            current_byte += 18;
+            continue;
+        } 
+        else 
+        {
+            LOG_INF("CRC validated payload");
+        }
 
-    // Check payload CRC
-    u8_t crc = compute_crc8_simple(0x2F, &(data_buffer[12]), 7);
-    if (crc != 0x00) {
-        LOG_INF("CRC failed for payload");
-        return;
-    }
+        dexcom_package_t package = {
+            .timestamp = k_uptime_get(),
+            .transmitterId = 0,
+            .rawIsig = extractISIG(buffer + current_byte + 12),
+            .filIsig = extractISIG(buffer + current_byte + 14),
+            .batLevel = 0,
+        };
 
-    uint16_t raw, filtered;
-    raw = extractISIG(data_buffer + 12);
-    filtered = extractISIG(data_buffer + 14);
+        printk("Raw: %d\n", package.rawIsig);
+        printk("Fil: %d\n", package.filIsig);
 
-    printk("\n");
-    printk("Raw: %d\n", raw);
-    printk("Fil: %d\n", filtered);
+        current_byte +=18;
+    }  
 }
 
-void read_package_from_cc(struct k_work *item)
+void read_data_from_cc2500(struct k_work *item)
 {
     LOG_INF("GDO0 asserted, which indicates end of packet received");
 
@@ -98,7 +112,7 @@ void read_package_from_cc(struct k_work *item)
         
         cc2500_read_burst(&cc_ctx, CC2500_REG_RXFIFO, data_buffer, num_bytes_rx, NULL);
 
-        process_dexcom_package(num_bytes_rx);
+        process_rx_data(data_buffer, num_bytes_rx);
 
     }    
 
@@ -112,7 +126,7 @@ void read_package_from_cc(struct k_work *item)
     return;
 }
 
-K_WORK_DEFINE(work, read_package_from_cc);
+K_WORK_DEFINE(work, read_data_from_cc2500);
 void submit_package_read(struct device *gpiob, struct gpio_callback *cb,
 		    u32_t pins)
 {
@@ -121,7 +135,7 @@ void submit_package_read(struct device *gpiob, struct gpio_callback *cb,
 }
 
 
-void test_cc2500(void) 
+void test_cc2500(dexcom_ctx_t *dex_ctx) 
 {
     LOG_INF("Testing CC2500");
     u8_t value, status;

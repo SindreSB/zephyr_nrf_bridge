@@ -108,7 +108,7 @@ float isigToMmol(float value)
  * @param firstByte Pointer to first (of two) bytes 
  * @return u16_t Value with the resulting ISIG value
  */
-u16_t extractISIG(u8_t *firstByte)
+u32_t extractISIG(u8_t *firstByte)
 {
     u16_t raw = firstByte[0] << 8 | firstByte[1];
     return convertFloat(reverse16(raw));
