@@ -18,17 +18,26 @@
 
 LOG_MODULE_REGISTER(dex_receiver);
 
-// Hack to that the interrupt handler gets access to the handler
+// Hack so that the interrupt handler gets access to the handler
 dexcom_ctx_t* receiver_context;
 
 // Forward declare internal functions
-void process_rx_data(u8_t *buffer, u8_t length);
-void read_data_from_cc2500(struct k_work *item);
-void submit_package_read(device_t *gpiob, gpio_callback_t *cb, u32_t pins);
-void handle_dexcom_event(dexcom_ctx_t *ctx, dexcom_event_t event);
 int configure_cc2500(dexcom_ctx_t *ctx);
+void handle_dexcom_event(dexcom_ctx_t *ctx, dexcom_event_t event);
+
+void enter_sleep(dexcom_ctx_t *ctx);
+
+void process_rx_data(u8_t *buffer, u8_t length);
+void read_data_from_cc2500(dexcom_ctx_t *ctx);
+void submit_package_read(device_t *gpiob, gpio_callback_t *cb, u32_t pins);
 
 
+/**
+ * @brief Start and configure the CC2500 for package receiption
+ * 
+ * 
+ * @param ctx The Dexcom receiver context to start
+ */
 void start_cc2500(dexcom_ctx_t *ctx) {
     // Hack before I can pass context  to interrupt handler
     receiver_context = ctx;
@@ -52,7 +61,7 @@ void start_cc2500(dexcom_ctx_t *ctx) {
 /**
  * @brief Configure the CC2500 for receiving values from a G4
  * 
- * @param ctx 
+ * @param ctx The dexcom receiver context
  */
 int configure_cc2500(dexcom_ctx_t *ctx) 
 {
@@ -127,21 +136,47 @@ int configure_cc2500(dexcom_ctx_t *ctx)
 }
 
 
-
+/**
+ * @brief Handle event in the Dexcom receiver statemachine
+ * 
+ * @param ctx The dexcom receiver context
+ * @param event The event that occured
+ */
 void handle_dexcom_event(dexcom_ctx_t *ctx, dexcom_event_t event)
 {
     if (event.type == DE_PACKAGE_RECEIVED) {
         // Package received -> put in package fifo
         k_fifo_alloc_put(receiver_context->package_queue, (dexcom_package_t *) event.data);
 
+        // Set last received
+
+        // Go to sleep
+
         // For now, go back into receive
         cc2500_mode_receive(ctx->cc_ctx, 0);
 
+        return;
     }
     else if (event.type == DE_PACKAGE_INVALID) 
     {
         // For now, go back into receive
         cc2500_mode_receive(ctx->cc_ctx, 0);
+
+        return;
+
+        if (ctx->current_channel == 3) {
+            // We have not gotten a single success
+            // If we have gotten a good package before, do long sleep, otherwise 
+            // go back into receive on channel 0
+            if (ctx->last_package_received == DE_NO_PACKAGE)
+            {
+                cc2500_mode_receive(ctx->cc_ctx, 0);
+            }
+            else 
+            {
+
+            }
+        }
     }
     else if (event.type == DE_SLEEP_TIMEOUT)
     {
@@ -151,6 +186,8 @@ void handle_dexcom_event(dexcom_ctx_t *ctx, dexcom_event_t event)
         // Go into receive
         ctx->current_channel = 0;
         cc2500_mode_receive(ctx->cc_ctx, 0);
+
+        return;
     }
     else if (event.type == DE_CHANNEL_TIMEOUT) 
     {
@@ -158,16 +195,22 @@ void handle_dexcom_event(dexcom_ctx_t *ctx, dexcom_event_t event)
         ctx->current_channel++;
         // Go into receive
         cc2500_mode_receive(ctx->cc_ctx, ctx->current_channel);
+
+        return;
     }
 }
 
 
+void enter_sleep(dexcom_ctx_t *ctx)
+{
+    // Send SXOFF
+    cc2500_mode_off(ctx->cc_ctx);
 
+    // Calculate sleeptime
+    
 
-
-
-
-
+    // Set timer
+}
 
 
 void process_rx_data(u8_t *buffer, u8_t length) 
@@ -222,16 +265,19 @@ void process_rx_data(u8_t *buffer, u8_t length)
     return;
 }
 
-void read_data_from_cc2500(struct k_work *item)
+void package_received_work_handler(struct k_work *item) {
+    read_data_from_cc2500(receiver_context);
+}
+
+
+void read_data_from_cc2500(dexcom_ctx_t *ctx)
 {
     LOG_INF("GDO0 asserted, which indicates end of packet received");
 
-    // Config should have put the device into idle mode at end of package
-    // but just to be sure
-    cc2500_mode_idle(receiver_context->cc_ctx);
+    cc2500_mode_idle(ctx->cc_ctx);
     
     u8_t rxbytes, status;
-    cc2500_read_status_reg(receiver_context->cc_ctx, CC2500_REG_RXBYTES, &rxbytes, &status);
+    cc2500_read_status_reg(ctx->cc_ctx, CC2500_REG_RXBYTES, &rxbytes, &status);
 
     LOG_INF("Status is: %02X, rxbytes is: %02X", status, rxbytes);
 
@@ -246,15 +292,15 @@ void read_data_from_cc2500(struct k_work *item)
         u8_t num_bytes_rx = rxbytes & 0x7F; // Mask bit 7, which is overflow
         LOG_INF("%d bytes received", num_bytes_rx);
         
-        cc2500_read_burst(receiver_context->cc_ctx, CC2500_REG_RXFIFO, receiver_context->data_buffer, num_bytes_rx, NULL);
+        cc2500_read_burst(ctx->cc_ctx, CC2500_REG_RXFIFO, ctx->data_buffer, num_bytes_rx, NULL);
 
-        process_rx_data(receiver_context->data_buffer, num_bytes_rx);
+        process_rx_data(ctx->data_buffer, num_bytes_rx);
     }    
 
     return;
 }
 
-K_WORK_DEFINE(work, read_data_from_cc2500);
+K_WORK_DEFINE(work, package_received_work_handler);
 void submit_package_read(struct device *gpiob, struct gpio_callback *cb,
 		    u32_t pins)
 {
