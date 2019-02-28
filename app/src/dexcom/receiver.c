@@ -30,10 +30,9 @@
 
 #define SEC_TO_TICK(sec) sec * 1200 // Trial and error, not accurate
 
-LOG_MODULE_REGISTER(test_cc2500);
+LOG_MODULE_REGISTER(dex_receiver);
 
 dexcom_ctx_t* receiver_context;
-
 
 u8_t bytes_in_buffer;
 u8_t data_buffer[64];
@@ -72,16 +71,14 @@ void process_rx_data(u8_t *buffer, u8_t length) {
             LOG_INF("CRC validated payload");
         }
 
-        dexcom_package_t package = {
-            .timestamp = k_uptime_get(),
-            .transmitterId = 0,
-            .rawIsig = extractISIG(buffer + current_byte + 12),
-            .filIsig = extractISIG(buffer + current_byte + 14),
-            .batLevel = 0,
-        };
+        dexcom_package_t *package_ptr = k_malloc(sizeof(dexcom_package_t));
+        package_ptr->timestamp = k_uptime_get();
+        package_ptr->transmitterId = 0;
+        package_ptr->rawIsig = extractISIG(buffer + current_byte + 12);
+        package_ptr->filIsig = extractISIG(buffer + current_byte + 14);
+        package_ptr->batLevel = 0;
 
-        printk("Raw: %d\n", package.rawIsig);
-        printk("Fil: %d\n", package.filIsig);
+        k_fifo_alloc_put(receiver_context->package_queue, package_ptr);
 
         current_byte +=18;
     }  
@@ -137,6 +134,8 @@ void submit_package_read(struct device *gpiob, struct gpio_callback *cb,
 
 void test_cc2500(dexcom_ctx_t *dex_ctx) 
 {
+    receiver_context = dex_ctx;
+
     LOG_INF("Testing CC2500");
     u8_t value, status;
 

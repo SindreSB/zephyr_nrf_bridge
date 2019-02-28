@@ -24,7 +24,6 @@ LOG_MODULE_REGISTER(cc2500_spi);
 
 int cc2500_init(cc2500_ctx_t *ctx)
 {
-    printk("SPI driver name: %s\n", SPI_DRV_NAME);
     int ret = 0;
 
     // Get output driver
