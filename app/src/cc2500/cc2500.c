@@ -10,8 +10,12 @@ LOG_MODULE_REGISTER(cc2500);
 
 #define NUM_CHANNELS 4
 static u8_t nChannels[NUM_CHANNELS] = { 0, 100, 199, 209 };
-static u8_t fOffset[NUM_CHANNELS] = {0xFD, 0xFD, 0xFD, 0xFD};
+static int8_t fOffset[NUM_CHANNELS] = {0xFD, 0xFD, 0xFD, 0xFD};
 
+
+void update_frequency_offset(u8_t channel, int8_t offset){
+    fOffset[channel] += offset;
+}
 
 bool cc2500_verify_osc_stabilization(cc2500_ctx_t *ctx)
 {

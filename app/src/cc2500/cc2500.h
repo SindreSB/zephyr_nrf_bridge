@@ -40,7 +40,6 @@ typedef struct cc2500_ctx {
     gpio_callback_t *gdo2_cb;
 
     cc2500_mode_t mode;
-
 } cc2500_ctx_t;
 
 bool cc2500_verify_osc_stabilization(cc2500_ctx_t *ctx);
@@ -56,5 +55,6 @@ int cc2500_mode_receive(cc2500_ctx_t *ctx, u8_t channel);
 
 int cc2500_flush_rxfifo(cc2500_ctx_t *ctx);
 
+void update_frequency_offset(u8_t channel, int8_t offset);
 
 #endif /* CC2500_H */
