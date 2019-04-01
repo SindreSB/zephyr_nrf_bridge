@@ -1,0 +1,12 @@
+config SIMULATE_RECEIVER
+	bool "Use a simulated receiver"
+	help
+	  Simulate the receiver instead of using a CC2500
+
+config ENABLE_BATTERY_MEASUREMENT
+	bool "Enable battery measurement"
+	help
+		Measure the battery using a voltage divider
+
+# Include Zephyr's Kconfig.
+source "$ZEPHYR_BASE/Kconfig"

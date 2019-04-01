@@ -1,0 +1,91 @@
+/*
+ * Copyright (c) 2019 Laird Connectivity
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/dts-v1/;
+#include <nordic/nrf52832_qfaa.dtsi>
+
+/ {
+	model = "n_bridge";
+	compatible = "ssb,n_bridge", "nordic,nrf52832-qfaa",
+		     "nordic,nrf52832";
+
+	chosen {
+		zephyr,sram = &sram0;
+		zephyr,flash = &flash0;
+		zephyr,code-partition = &slot0_partition;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		led1: led_1 {
+			gpios = <&gpio0 17 GPIO_INT_ACTIVE_HIGH>;
+			label = "Blue LED 1";
+		};
+		led2: led_2 {
+			gpios = <&gpio0 19 GPIO_INT_ACTIVE_HIGH>;
+			label = "Blue LED 2";
+		};
+	};
+
+	/* These aliases are provided for compatibility with samples */
+	aliases {
+		led0 = &led1;
+		led1 = &led2;
+	};
+};
+
+&adc {
+	status ="ok";
+};
+
+&gpiote {
+	status ="ok";
+};
+
+&gpio0 {
+	status ="ok";
+};
+
+&spi2 {
+	status = "ok";
+	miso-pin = <33>;
+	sck-pin = <32>;
+	mosi-pin = <31>;
+    cs-gpios = <&gpio0 37 0>;
+};
+
+&flash0 {
+	/*
+	 * For more information, see:
+	 * http://docs.zephyrproject.org/latest/guides/dts/index.html#flash-partitions
+	 */
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		boot_partition: partition@0 {
+			label = "mcuboot";
+			reg = <0x00000000 0xc000>;
+		};
+		slot0_partition: partition@c000 {
+			label = "image-0";
+			reg = <0x0000C000 0x32000>;
+		};
+		slot1_partition: partition@3e000 {
+			label = "image-1";
+			reg = <0x0003E000 0x32000>;
+		};
+		scratch_partition: partition@70000 {
+			label = "image-scratch";
+			reg = <0x00070000 0xa000>;
+		};
+		storage_partition: partition@7a000 {
+			label = "storage";
+			reg = <0x0007a000 0x00006000>;
+		};
+	};
+};

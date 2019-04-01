@@ -2,3 +2,5 @@
 app/build/
 
 app/\.nul\.old
+
+\.vscode/

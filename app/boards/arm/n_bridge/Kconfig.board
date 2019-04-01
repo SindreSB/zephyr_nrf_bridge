@@ -1,0 +1,5 @@
+# Kconfig - nBridge board configuration
+
+config  BOARD_NBRIDGE
+	bool "N BRIDGE"
+	depends on SOC_NRF52832_QFAA
