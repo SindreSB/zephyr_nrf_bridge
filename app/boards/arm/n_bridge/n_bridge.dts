@@ -54,6 +54,7 @@
 	miso-pin = <33>;
 	sck-pin = <32>;
 	mosi-pin = <31>;
+	spi-max-frequency = <500000>;
     cs-gpios = <&gpio0 37 0>;
 };
 

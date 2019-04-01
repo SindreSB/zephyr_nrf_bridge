@@ -11,11 +11,11 @@ CONFIG_ARM_MPU=y
 CONFIG_HAS_SEGGER_RTT=y
 CONFIG_USE_SEGGER_RTT=y
 
-# enable console
+# Enable console
 CONFIG_CONSOLE=y
 CONFIG_RTT_CONSOLE=y
 
-# additional board options
+# Additional board options
 CONFIG_GPIO_AS_PINRESET=y
 
 # 32kHz clock source

@@ -35,6 +35,8 @@ void init_dexcom() {
 void init_dexcom() {}
 #endif /* CONFIG_SIMULATE_RECEIVER */
 
+
+
 struct bt_conn *default_conn;
 
 static const struct bt_data ad[] = {
