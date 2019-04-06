@@ -18,7 +18,7 @@
 #include <gpio.h>
 
 #include "dexcom/receiver.h"
-#include "gatt/cgm.h"
+#include "gatt/services/cgms.h"
 
 #ifndef CONFIG_SIMULATE_RECEIVER
 DEXCOM_RECEIVER(dexcom_receiver_ctx);
@@ -78,7 +78,9 @@ static void bt_ready(int err)
 
 	printk("Bluetooth initialized\n");
 
-	cgm_init();
+	//cgm_init();
+
+	cgms_init();
 
 	err = bt_le_adv_start(BT_LE_ADV_CONN_NAME, ad, ARRAY_SIZE(ad), NULL, 0);
 	if (err) {
@@ -132,12 +134,22 @@ void main(void)
     }
 #else 
     u32_t simulatedISIG = 108000;
+	dexcom_package_t simulated_package = {
+		.timestamp = 0,
+		.transmitterId = 0x01,
+		.rawIsig = 72000,
+		.filIsig =72000,
+		.batLevel = 100
+	};
+
     while(1) {
         k_sleep(K_SECONDS(1));
 
+		simulated_package.timestamp += 1;
+		simulated_package.filIsig = simulated_package.filIsig + 1000 % 72000;
 
-        simulatedISIG += 20;
-        cgm_notify(simulatedISIG);
+		cgms_add_measurement(simulated_package);
+
     }
 #endif
 }

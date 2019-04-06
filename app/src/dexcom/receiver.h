@@ -1,5 +1,6 @@
 #pragma once
 #include <zephyr.h>
+#include <gpio.h>
 #include "../cc2500/cc2500.h"
 
 #define DE_TIME_BETWEEN_TRANS (1000 * 60 * 5)           // 1 min

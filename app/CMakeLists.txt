@@ -9,10 +9,12 @@ FILE(GLOB app_sources src/*.c )
 FILE(GLOB dex_sources src/dexcom/*.c )
 FILE(GLOB cc_sources src/cc2500/*.c )
 FILE(GLOB gatt_sources src/gatt/*.c )
+FILE(GLOB cgms_sources src/gatt/*/*.c )
 
 target_sources(app PRIVATE 
     ${app_sources} 
     ${dex_sources} 
     ${cc_sources}
     ${gatt_sources}
+    ${cgms_sources}
 ) 
