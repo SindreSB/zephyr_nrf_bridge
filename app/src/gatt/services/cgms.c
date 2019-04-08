@@ -1,10 +1,13 @@
-#include <zephyr/types.h>
 #include <stddef.h>
 #include <string.h>
 #include <errno.h>
 #include <misc/printk.h>
 #include <misc/byteorder.h>
+
 #include <zephyr.h>
+#include <zephyr/types.h>
+#include <logging/log.h>
+#include <logging/log_ctrl.h>
 
 #include <settings/settings.h>
 
@@ -30,6 +33,7 @@ static ble_meas_rec_t measurement_value;
  * [6-7]    : RFU
  */
 static u8_t status_value;
+static u8_t missed_readings;
 
 static u32_t trans_id_value;
 
@@ -177,6 +181,7 @@ static ssize_t write_time(struct bt_conn *conn,
 	}
 
 	memcpy(value + offset, buf, len);
+    time_set = k_uptime_get_32();
 
 	return len;
 }
@@ -257,8 +262,52 @@ static struct bt_gatt_attr attrs[] = {
 static struct bt_gatt_service simple_cgms_svc = BT_GATT_SERVICE(attrs);
 
 
+/*******************************************
+ * 
+ * 
+ * Utility functions
+ * 
+ * 
+ * ****************************************/
+
+s32_t calculateMinFromTimeSet(u32_t timestamp, u16_t *delta) 
+{
+    if (time_set == 0) {
+        return -1;
+    }
+    *delta = (timestamp - time_set) / ( 1000 * 60 );
+
+    return 0;
+}
+
+void set_measurement_value(meas_record_t* ptr) 
+{
+    measurement_value = (ble_meas_rec_t) {
+        .filtered = ptr->filtered,
+        .raw = ptr->raw,
+        .trans_batt = ptr->trans_batt,
+        .time = 0,
+        .status = status_value
+    };
+    
+    calculateMinFromTimeSet(ptr->timestamp, &(measurement_value.time));
+
+    bt_gatt_notify(NULL, &attrs[1], &measurement_value, sizeof(measurement_value));
+}
+
+
+/******************************************
+ * 
+ * 
+ * Public API for init and adding values
+ * and state
+ * 
+ * 
+ * ****************************************/
+
 // Create service
-void cgms_init(void){
+void cgms_init(void)
+{
     time_value = (ble_time_t) {
         .year = 2019,
         .month = 4,
@@ -267,7 +316,7 @@ void cgms_init(void){
         .minute = 43,
         .second = 30
     };
-    time_set = 0;
+    time_set = 1;
 
     status_value = 1;
 
@@ -275,7 +324,7 @@ void cgms_init(void){
         .filtered = 1,
         .raw = 2,
         .trans_batt = 100,
-        .time = time_value,
+        .time = 0,
         .status = status_value
     };
 
@@ -287,20 +336,7 @@ void cgms_init(void){
 
 void cgms_failed_reading()
 {
-
-}
-
-void set_measurement_value(meas_record_t* ptr) 
-{
-    measurement_value = (ble_meas_rec_t) {
-        .filtered = ptr->filtered,
-        .raw = ptr->raw,
-        .trans_batt = ptr->trans_batt,
-        .time = time_value,
-        .status = status_value
-    };
-
-    bt_gatt_notify(NULL, &attrs[1], &measurement_value, sizeof(measurement_value));
+    missed_readings++;
 }
 
 void cgms_add_measurement(dexcom_package_t reading)
@@ -314,6 +350,8 @@ void cgms_add_measurement(dexcom_package_t reading)
         .trans_batt = reading.batLevel,
         .timestamp = reading.timestamp,
     };
+
+    missed_readings = 0;
 
     set_measurement_value(rec_ptr);
 }
