@@ -23,25 +23,25 @@ The nBridge consists of a LiPo charger, a 3.3 regulator, a BL652 BLE module and 
 
 
 ## PCB 
-The kicad file for the first version is attached, though the scematic no longer exists for this particular version.The PCB can also be found on https://aisler.net/p/FUKRPVUI. Newer, and maybe untested, revisions might be available. Currently, only revision 1 has been ordered.
+The PCB can be found on https://aisler.net/p/FUKRPVUI. Newer, and maybe untested, revisions might be available there as well. The full source of the PCB is in the folder nBridge, though some symbols might be in different libraries not included. Currently, only revision 1 has been ordered.
 
 ## Pinout 
 ### NRF52 - CC2500
 | BL652 pin(V1) | nRF52832 pin | Function | 
 |----|-|-----|
-| 31 | | CC2500 - MOSI | 
-| 32 | | CC2500 - CLK |
-| 33 | | CC2500 - MISO |
-| 35 | | CC2500 - GDO0 |
-| 36 | | CC2500 - GDO2 |
-| 37 | | CC2500 - CSn |
-| 34 | | Analog input of battery voltage |
-| 38 | | Enable battery voltage measurement |
-| 20 | | LED0 |
-| 19 | | LED1 |
-| 5  | | SWDIO |
-| 6  | | SWDCLK |
-| 7  | | nRST |
-| 9  | | SWO |
+| 31 | P0.19 | CC2500 - MOSI | 
+| 32 | P0.31 | CC2500 - CLK |
+| 33 | P0.30 | CC2500 - MISO |
+| 35 | P0.28 | CC2500 - GDO0 |
+| 36 | P0.27 | CC2500 - GDO2 |
+| 37 | P0.26 | CC2500 - CSn |
+| 34 | P0.29/AIN5 | Analog input of battery voltage |
+| 38 | P0.25 | Enable battery voltage measurement |
+| 20 | P0.05 | LED0 |
+| 19 | P0.06 | LED1 |
+| 5  | SWDIO | SWDIO |
+| 6  | SWDCLK | SWDCLK |
+| 7  | P0.21 | nRST |
+| 9  | P0.18 | SWO |
 
 
