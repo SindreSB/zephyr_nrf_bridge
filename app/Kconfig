@@ -1,12 +1,59 @@
-config SIMULATE_RECEIVER
-	bool "Use a simulated receiver"
-	help
-	  Simulate the receiver instead of using a CC2500
+# Include Zephyr's Kconfig.
+source "$ZEPHYR_BASE/Kconfig"
 
-config ENABLE_BATTERY_MEASUREMENT
+config CC2500
+	bool "Use a CC2500"
+	help
+	   Use a CC2500 connected, otherwise it will be simulated
+
+if CC2500
+config CC2500_SPI
+	string "Which SPI device to use"
+	default "SPI_2"
+
+config CC2500_GPIO
+	string "Which GPIO device to use"
+	default "GPIO_0"
+
+config CC2500_GDO0_PIN
+	int "GDO0 pin number"
+	default 28
+
+config CC2500_GDO2_PIN
+	int "GDO2 pin number"
+	default 27
+
+config CC2500_CS_PIN
+	int "nCS pin number"
+	default 26
+endif # CC2500
+
+# Config for simulated data
+if !CC2500
+
+config CC2500_SIMULATED_TRANS_SPACING
+	int "Time between transmissions in seconds"
+	default 30
+
+endif # !CC2500
+
+config BATTERY_MEASUREMENT
 	bool "Enable battery measurement"
 	help
 		Measure the battery using a voltage divider
 
-# Include Zephyr's Kconfig.
-source "$ZEPHYR_BASE/Kconfig"
+if BATTERY_MEASUREMENT
+
+config BATTERY_MEASUREMENT_GPIO
+	string "Which GPIO device to use"
+	default "GPIO_0"
+
+config BATTERY_MEASUREMENT_EN_PIN
+	int "battery measurement enable pin"
+	default 25
+
+config BATTERY_MEASUREMENT_ANALOG_PIN
+	int "battery measurement analog pin"
+	default 29
+
+endif # BATTERY_MEASUREMENT

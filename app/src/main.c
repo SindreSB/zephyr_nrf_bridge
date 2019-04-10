@@ -20,7 +20,7 @@
 #include "dexcom/receiver.h"
 #include "gatt/services/cgms.h"
 
-#ifndef CONFIG_SIMULATE_RECEIVER
+#ifdef CONFIG_CC2500
 DEXCOM_RECEIVER(dexcom_receiver_ctx);
 DEXCOM_RECEIVER_TIMER(dexcom_receiver_ctx);
 DEXCOM_INTERRUPT_HANDLER(dexcom_receiver_ctx);
@@ -117,7 +117,7 @@ void main(void)
 	bt_conn_cb_register(&conn_callbacks);
     bt_conn_auth_cb_register(&auth_cb_display);
 
-#ifndef CONFIG_SIMULATE_RECEIVER
+#ifdef CONFIG_CC2500
     init_dexcom();
     start_cc2500(&dexcom_receiver_ctx);
 
@@ -128,12 +128,11 @@ void main(void)
         printk("Raw: %d\n", pkt->rawIsig);
         printk("Fil: %d\n", pkt->filIsig);
 
-        cgm_notify(pkt->filIsig);
+        cgms_add_measurement(*pkt);
 
         k_free(pkt);
     }
-#else 
-    u32_t simulatedISIG = 108000;
+#else
 	dexcom_package_t simulated_package = {
 		.timestamp = 0,
 		.transmitterId = 0x01,

@@ -11,13 +11,8 @@
 #include "cc2500_spi.h"
 #include "cc2500_reg.h"
 
-// Does this work for NRF52 -yes, but not general enough?
-#define GPIO_OUT_DRV_NAME "GPIO_0"
-#define SPI_DRV_NAME "SPI_2"
-#define SPI_CS_PIN 17
-
-#define GDO0_PIN 30
-#define GDO2_PIN 31
+// Includes defines for used pins
+#include "config.h"
 
 LOG_MODULE_REGISTER(cc2500_spi);
 
