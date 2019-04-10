@@ -20,6 +20,7 @@
 #include "cgms.h"
 #include "rdb.h"
 #include "../ble_types.h"
+#include "../ble_utils.h"
 
 
 // Values
@@ -270,14 +271,9 @@ static struct bt_gatt_service simple_cgms_svc = BT_GATT_SERVICE(attrs);
  * 
  * ****************************************/
 
-s32_t calculateMinFromTimeSet(u32_t timestamp, u16_t *delta) 
+s16_t calculateMinFromTimeSet(u32_t timestamp) 
 {
-    if (time_set == 0) {
-        return -1;
-    }
-    *delta = (timestamp - time_set) / ( 1000 * 60 );
-
-    return 0;
+    return (timestamp - time_set) / ( 1000 * 60 );
 }
 
 void set_measurement_value(meas_record_t* ptr) 
@@ -286,11 +282,9 @@ void set_measurement_value(meas_record_t* ptr)
         .filtered = ptr->filtered,
         .raw = ptr->raw,
         .trans_batt = ptr->trans_batt,
-        .time = 0,
+        .time = calculateMinFromTimeSet(ptr->timestamp),
         .status = status_value
     };
-    
-    calculateMinFromTimeSet(ptr->timestamp, &(measurement_value.time));
 
     bt_gatt_notify(NULL, &attrs[1], &measurement_value, sizeof(measurement_value));
 }
@@ -345,8 +339,8 @@ void cgms_add_measurement(dexcom_package_t reading)
     rdb_new(&rec_ptr);
 
     *rec_ptr = (meas_record_t) {
-        .filtered = reading.filIsig / 1000,
-        .raw = reading.rawIsig / 1000,
+        .filtered = intToSfloat(reading.filIsig),
+        .raw = intToSfloat(reading.filIsig),
         .trans_batt = reading.batLevel,
         .timestamp = reading.timestamp,
     };
