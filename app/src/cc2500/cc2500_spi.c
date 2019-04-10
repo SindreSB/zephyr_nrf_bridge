@@ -1,4 +1,6 @@
 
+#ifdef CONFIG_CC2500
+
 #include <zephyr.h>
 #include <logging/log.h>
 #include <misc/printk.h>
@@ -162,3 +164,5 @@ int cc2500_register_gdo2_handler(cc2500_ctx_t *ctx, gpio_callback_handler_t hand
 {
     return cc2500_register_handler(ctx, ctx->gdo2_pin, ctx->gdo2_cb, handler, edge);
 }
+
+#endif // CONFIG_CC2500

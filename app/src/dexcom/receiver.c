@@ -11,7 +11,6 @@
 #include "../cc2500/cc2500_spi.h"
 #include "../cc2500/cc2500_reg.h"
 #include "../cc2500/cc2500.h"
-#include "../cc2500/utils.h"
 
 #include "receiver.h"
 #include "utils.h"

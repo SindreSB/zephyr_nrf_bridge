@@ -1,3 +1,5 @@
+#ifdef CONFIG_CC2500
+
 #include <zephyr.h>
 #include <logging/log.h>
 
@@ -104,3 +106,5 @@ int cc2500_flush_rxfifo(cc2500_ctx_t *ctx){
 
     return 0;
 }
+
+#endif // CONFIG_CC2500

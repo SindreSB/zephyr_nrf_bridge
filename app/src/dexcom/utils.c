@@ -1,3 +1,5 @@
+#ifdef CONFIG_CC2500
+
 #include <zephyr.h>
 
 /**
@@ -113,3 +115,5 @@ u32_t extractISIG(u8_t *firstByte)
     u16_t raw = firstByte[0] << 8 | firstByte[1];
     return convertFloat(reverse16(raw));
 }
+
+#endif // CONFIG_CC2500

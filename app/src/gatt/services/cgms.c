@@ -340,7 +340,7 @@ void cgms_add_measurement(dexcom_package_t reading)
 
     *rec_ptr = (meas_record_t) {
         .filtered = intToSfloat(reading.filIsig),
-        .raw = intToSfloat(reading.filIsig),
+        .raw = intToSfloat(reading.rawIsig),
         .trans_batt = reading.batLevel,
         .timestamp = reading.timestamp,
     };

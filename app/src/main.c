@@ -142,7 +142,7 @@ void main(void)
 	};
 
     while(1) {
-        k_sleep(K_SECONDS(1));
+        k_sleep(K_SECONDS(10));
 
 		simulated_package.timestamp += 1;
 		simulated_package.filIsig = simulated_package.filIsig + 1000 % 72000;

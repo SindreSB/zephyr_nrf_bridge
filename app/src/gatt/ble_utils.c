@@ -18,6 +18,6 @@ u16_t intToSfloat(u32_t value)
 		value /= 10;
 		exponent++;
 	}
-
-	return (exponent << 12) | (value & 0x00000FFF);
+    
+    return (exponent << 12) | (value & 0x00000FFF);
 }
