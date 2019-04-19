@@ -13,7 +13,7 @@ typedef struct ble_time {
 typedef struct ble_meas_rec {
     u16_t filtered;
     u16_t raw;
-    u8_t trans_batt;
     s16_t time;
+    u8_t trans_batt;
     u8_t status;
 } ble_meas_rec_t;
