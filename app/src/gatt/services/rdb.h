@@ -20,8 +20,8 @@
  */
 
 typedef struct meas_record {
-    u16_t filtered;
-    u16_t raw;
+    u32_t filtered;
+    u32_t raw;
     u8_t trans_batt;
     u32_t timestamp;
 } meas_record_t;

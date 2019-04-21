@@ -49,6 +49,8 @@ Packet type|Uint8|1 [1]|0xF0|Packet type- should be 0xF0
 Historically the Wixel went to sleep upon reception, or after a 3 sec timeout, but the xDrip app can support receiving another measurement after an acknowledgement has been sent. 
 
 ## TxId packet
+This packet is sent fomr the app to the device to set the transmitter id to filter on.
+
 Name|Type|Size [bytes]|Value|Description
 --- | --- | --- | --- | --- 
 Size|Uint8|1 [0]|0x06|Number of bytes in package
@@ -57,7 +59,7 @@ Transmitter Id|Uint32|4 [2:5]||Dexcom transmitter id, int encoded
 
 
 ##  Beacon package
-The beacon package is sent from the app to device
+The beacon package is sent from the device to the app
 
 Name|Type|Size [bytes]|Value|Description
 --- | --- | --- | --- | --- 

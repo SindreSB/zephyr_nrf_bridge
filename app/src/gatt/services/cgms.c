@@ -24,30 +24,15 @@
 
 
 // Values
-static ble_meas_rec_t measurement_value;
-
-/**
- * Status value carries this information, [bits]:
- * [0-3]    : Number of missed readings
- * [4]      : Transmitter ID set
- * [5]      : Time value set
- * [6-7]    : RFU
- */
-static u8_t status_value;
-static u8_t missed_readings;
+static ble_meas_pkt_t measurement_value;
 
 static u32_t trans_id_value;
 
-static u32_t time_set;
-static ble_time_t time_value;
-
-static u32_t rcap_value;
-
 // UUIDs for service
 
-static struct bt_uuid_128 CMGS_SERVICE_UUID = BT_UUID_INIT_128(
-    0xf0, 0xde, 0xbc, 0x9a, 0x78, 0x56, 0x34, 0x12,
-    0x78, 0x56, 0x34, 0x12, 0x78, 0x56, 0x34, 0x10);
+static struct bt_uuid_128 XBRIDGE2_SERVICE_UUID = BT_UUID_INIT_128(
+    0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80,
+    0x00, 0x10, 0x00, 0x00, 0xe0, 0xff, 0x00, 0x00);
 
 
 /**
@@ -60,12 +45,11 @@ static struct bt_uuid_128 CMGS_SERVICE_UUID = BT_UUID_INIT_128(
  * 
  */
 static struct bt_uuid_128 MEASUREMENT_CHAR_UUID = BT_UUID_INIT_128(
-    0xf0, 0xde, 0xbc, 0x9a, 0x78, 0x56, 0x34, 0x12,
-    0x78, 0x56, 0x34, 0x12, 0x78, 0x56, 0x34, 0x11);
+    0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80,
+    0x00, 0x10, 0x00, 0x00, 0xe1, 0xff, 0x00, 0x00);
 
 static struct bt_gatt_ccc_cfg measurement_ccc_cfg[10] = {};
 static u8_t measurement_notify_enabled;
-
 
 
 static void measurement_ccc_cfg_changed(const struct bt_gatt_attr *attr, u16_t value)
@@ -76,155 +60,23 @@ static void measurement_ccc_cfg_changed(const struct bt_gatt_attr *attr, u16_t v
 static ssize_t read_measurement(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 			 void *buf, u16_t len, u16_t offset)
 {
-	const ble_meas_rec_t *value = attr->user_data;
+	const ble_meas_pkt_t *value = attr->user_data;
 
 	return bt_gatt_attr_read(conn, attr, buf, len, offset, value,
 				 sizeof(*value));
 }
 
-
-/**
- * 
- * 
- * STATUS CHARACTERISITC
- * 
- * This characterisit is used to hold status information, 
- * though this info is also available in a measurement package
- * 
- */
-static struct bt_uuid_128 STATUS_CHAR_UUID = BT_UUID_INIT_128(
-    0xf0, 0xde, 0xbc, 0x9a, 0x78, 0x56, 0x34, 0x12,
-    0x78, 0x56, 0x34, 0x12, 0x78, 0x56, 0x34, 0x12);
-
-
-
-static ssize_t read_status(struct bt_conn *conn, const struct bt_gatt_attr *attr,
-			 void *buf, u16_t len, u16_t offset)
-{
-	const u8_t *value = attr->user_data;
-
-	return bt_gatt_attr_read(conn, attr, buf, len, offset, value,
-				 sizeof(*value));
-}
-
-
-/**
- * 
- * 
- * TRANSMITTER ID CHARACTERISITC
- * 
- * This characterisit holds the transmitter ID the sender
- * should relay measurements from. 
- * 
- */
-static struct bt_uuid_128 TRANS_ID_CHAR_UUID = BT_UUID_INIT_128(
-    0xf0, 0xde, 0xbc, 0x9a, 0x78, 0x56, 0x34, 0x12,
-    0x78, 0x56, 0x34, 0x12, 0x78, 0x56, 0x34, 0x13);
-
-
-static ssize_t read_trans_id(struct bt_conn *conn, const struct bt_gatt_attr *attr,
-			 void *buf, u16_t len, u16_t offset)
-{
-	const u32_t *value = attr->user_data;
-
-	return bt_gatt_attr_read(conn, attr, buf, len, offset, value,
-				 sizeof(*value));
-}
-
-static ssize_t write_trans_id(struct bt_conn *conn,
-				const struct bt_gatt_attr *attr,
-				const void *buf, u16_t len, u16_t offset,
-				u8_t flags)
-{
-	u32_t *value = attr->user_data;
-
-    if (offset + len > sizeof(trans_id_value)) {
-		return BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET);
-	}
-
-	memcpy(value + offset, buf, len);
-
-	return len;
-}
-
-/**
- * 
- * 
- * TIME CHARACTERISITC
- * 
- * Used to set the real time, so the sender can adjust
- * the timestamp on measurements 
- * 
- */
-static struct bt_uuid_128 TIME_CHAR_UUID = BT_UUID_INIT_128(
-    0xf0, 0xde, 0xbc, 0x9a, 0x78, 0x56, 0x34, 0x12,
-    0x78, 0x56, 0x34, 0x12, 0x78, 0x56, 0x34, 0x14);
+static ssize_t write_measurement(struct bt_conn *conn, const struct bt_gatt_attr *attr, const void *buf, u16_t len, u16_t offset, u8_t flags) {
     
+    //TODO: Read first byte to check that size is > 1
+    // then use second byte to identify packet type
+    // attr->user_data
 
-static ssize_t read_time(struct bt_conn *conn, const struct bt_gatt_attr *attr,
-			 void *buf, u16_t len, u16_t offset)
-{
-	const ble_time_t *value = attr->user_data;
+    // Data we can use begin at value + offset. 
+    // Size of package is len
 
-	return bt_gatt_attr_read(conn, attr, buf, len, offset, value,
-				 sizeof(*value));
+    return len;
 }
-
-static ssize_t write_time(struct bt_conn *conn,
-				const struct bt_gatt_attr *attr,
-				const void *buf, u16_t len, u16_t offset,
-				u8_t flags)
-{
-	ble_time_t *value = attr->user_data;
-
-    if (offset + len > sizeof(time_value)) {
-		return BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET);
-	}
-
-	memcpy(value + offset, buf, len);
-    time_set = k_uptime_get_32();
-
-	return len;
-}
-
-
-/**
- * 
- * 
- * RACP CHARACTERISITC
- * 
- * Used to set the real time, so the sender can adjust
- * the timestamp on measurements 
- * 
- */
-static struct bt_uuid_128 RACP_CHAR_UUID = BT_UUID_INIT_128(
-    0xf0, 0xde, 0xbc, 0x9a, 0x78, 0x56, 0x34, 0x12,
-    0x78, 0x56, 0x34, 0x12, 0x78, 0x56, 0x34, 0x15);
-
-static struct bt_gatt_ccc_cfg rcap_ccc_cfg[10] = {};
-static u8_t rcap_notify_enabled;
-
-static void racp_ccc_cfg_changed(const struct bt_gatt_attr *attr, u16_t value)
-{
-    rcap_notify_enabled = (value == BT_GATT_CCC_INDICATE) ? 1 : 0;
-}
-
-static ssize_t write_racp(struct bt_conn *conn,
-				const struct bt_gatt_attr *attr,
-				const void *buf, u16_t len, u16_t offset,
-				u8_t flags)
-{
-	u32_t *value = attr->user_data;
-
-    if (offset + len > sizeof(rcap_value)) {
-		return BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET);
-	}
-
-	memcpy(value + offset, buf, len);
-
-	return len;
-}
-
 
 /**
  * 
@@ -234,31 +86,13 @@ static ssize_t write_racp(struct bt_conn *conn,
  * 
  */
 static struct bt_gatt_attr attrs[] = {
-    BT_GATT_PRIMARY_SERVICE(&CMGS_SERVICE_UUID),
+    BT_GATT_PRIMARY_SERVICE(&XBRIDGE2_SERVICE_UUID),
     BT_GATT_CHARACTERISTIC(&MEASUREMENT_CHAR_UUID.uuid,
-			       BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
-			       BT_GATT_PERM_READ, 
-                   read_measurement, NULL, &measurement_value),
-	BT_GATT_CCC(measurement_ccc_cfg, measurement_ccc_cfg_changed),
-    BT_GATT_CHARACTERISTIC(&STATUS_CHAR_UUID.uuid,
-			       BT_GATT_CHRC_READ,
-			       BT_GATT_PERM_READ, 
-                   read_status, NULL, &status_value),
-    BT_GATT_CHARACTERISTIC(&TRANS_ID_CHAR_UUID.uuid,
-			       BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE,
-			       BT_GATT_PERM_READ | BT_GATT_PERM_WRITE, 
-                   read_trans_id, write_trans_id, &trans_id_value),
-    BT_GATT_CHARACTERISTIC(&TIME_CHAR_UUID.uuid,
-			       BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE,
-			       BT_GATT_PERM_READ | BT_GATT_PERM_WRITE, 
-                   read_time, write_time, &time_value),
-    BT_GATT_CHARACTERISTIC(&RACP_CHAR_UUID.uuid,
-			       BT_GATT_CHRC_WRITE | BT_GATT_CHRC_NOTIFY,
-			       BT_GATT_PERM_WRITE, 
-                   NULL, write_racp, &rcap_value),
-	BT_GATT_CCC(rcap_ccc_cfg, racp_ccc_cfg_changed),
+			       BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE | BT_GATT_CHRC_NOTIFY,
+			       BT_GATT_PERM_READ | BT_GATT_PERM_WRITE,
+                   read_measurement, write_measurement, &measurement_value),
+	BT_GATT_CCC(measurement_ccc_cfg, measurement_ccc_cfg_changed)
 };
-
 
 static struct bt_gatt_service simple_cgms_svc = BT_GATT_SERVICE(attrs);
 
@@ -270,20 +104,20 @@ static struct bt_gatt_service simple_cgms_svc = BT_GATT_SERVICE(attrs);
  * 
  * 
  * ****************************************/
-
-s16_t calculateMinFromTimeSet(u32_t timestamp) 
+u32_t calculateTimeDelay(u32_t timestamp) 
 {
-    return (timestamp - time_set) / ( 1000 * 60 );
+    return -1 * (timestamp - k_uptime_get_32()); // Multiply by -1 to ge tpositive value.
 }
 
 void set_measurement_value(meas_record_t* ptr) 
 {
-    measurement_value = (ble_meas_rec_t) {
-        .filtered = ptr->filtered,
-        .raw = ptr->raw,
-        .trans_batt = ptr->trans_batt,
-        .time = calculateMinFromTimeSet(ptr->timestamp),
-        .status = status_value
+    measurement_value = (ble_meas_pkt_t) {
+        .raw_value = ptr->raw,
+        .filtered_value = ptr->filtered,
+        .trans_bat = ptr->trans_batt,
+        .bridge_bat = 100,
+        .transmitter_id = trans_id_value,
+        .measurement_delay = calculateTimeDelay(ptr->timestamp)
     };
 
     bt_gatt_notify(NULL, &attrs[1], &measurement_value, sizeof(measurement_value));
@@ -302,35 +136,13 @@ void set_measurement_value(meas_record_t* ptr)
 // Create service
 void cgms_init(void)
 {
-    time_value = (ble_time_t) {
-        .year = 2019,
-        .month = 4,
-        .day = 6,
-        .hour = 10,
-        .minute = 43,
-        .second = 30
-    };
-    time_set = 1;
-
-    status_value = 1;
-
-    measurement_value = (ble_meas_rec_t) {
-        .filtered = 1,
-        .raw = 2,
-        .trans_batt = 100,
-        .time = 0,
-        .status = status_value
-    };
-
-    trans_id_value = 2;
-    rcap_value = 4;
+    memset(&measurement_value, 0, sizeof(ble_meas_pkt_t));
 
     bt_gatt_service_register(&simple_cgms_svc);
 }
 
-void cgms_failed_reading()
-{
-    missed_readings++;
+void cgms_send_all() {
+    // TODO: Not implemented
 }
 
 void cgms_add_measurement(dexcom_package_t reading)
@@ -339,13 +151,11 @@ void cgms_add_measurement(dexcom_package_t reading)
     rdb_new(&rec_ptr);
 
     *rec_ptr = (meas_record_t) {
-        .filtered = intToSfloat(reading.filIsig),
-        .raw = intToSfloat(reading.rawIsig),
+        .filtered = reading.filIsig,
+        .raw = reading.rawIsig,
         .trans_batt = reading.batLevel,
         .timestamp = reading.timestamp,
     };
-
-    missed_readings = 0;
 
     set_measurement_value(rec_ptr);
 }
