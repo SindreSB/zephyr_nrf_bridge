@@ -142,9 +142,9 @@ void main(void)
 	};
 
     while(1) {
-        k_sleep(K_SECONDS(10));
+        k_sleep(K_SECONDS(CONFIG_CC2500_SIMULATED_TRANS_SPACING));
 
-		simulated_package.timestamp += 1;
+		simulated_package.timestamp = k_uptime_get_32();
 		simulated_package.filIsig = simulated_package.filIsig + 1000 % 72000;
 
 		cgms_add_measurement(simulated_package);
