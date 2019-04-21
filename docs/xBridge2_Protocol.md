@@ -1,5 +1,5 @@
 # xBridge2 Protocol spesification
-The xBridge2 protocol is used by LBridge as well as Others? to transmit BG measurements to the xDrip+ application. Any transmitter using this protocol can use the Bluetooth Wixel collector in xDrip+. 
+The xBridge2 protocol is used by LBridge as well as others? to transmit BG measurements to the xDrip+ application. Any transmitter using this protocol can use the Bluetooth Wixel collector? in xDrip+. 
 
 ## Service and characteristics
 The xBridge2 protocol consists of a single service, with one characteristic. These coincide with the HM10 bluetooth module used in the original Wixel bridge. 
