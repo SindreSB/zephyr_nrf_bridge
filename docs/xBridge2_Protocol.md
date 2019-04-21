@@ -2,13 +2,16 @@
 The xBridge2 protocol is used by LBridge as well as Others? to transmit BG measurements to the xDrip+ application. Any transmitter using this protocol can use the Bluetooth Wixel collector in xDrip+. 
 
 ## Service and characteristics
-The xBridge2 protocol consists of a single service, with one characteristic. 
+The xBridge2 protocol consists of a single service, with one characteristic. These coincide with the HM10 bluetooth module used in the original Wixel bridge. 
 
 xBridge2 service 
+
 UUID: 0000ffe0-0000-1000-8000-00805f9b34fb
 
 Communications characteristic: 
+
 UUID: 0000ffe1-0000-1000-8000-00805f9b34fb
+
 Permissions: Read, Write, Notify
 
 ## Packets
@@ -27,11 +30,9 @@ Transmitter battery|Uint8|1 [10]||Transmitter battery value, as received from tr
 Bridge battery|Uint8|1 [11]||Battery percentage 0-100 as an integer
 Transmitter id|Uint32|4 [12:15]||Transmitter id of the Dexcom transmitter
 Delay|Uint32|4 [16:19]||Offset since measurement in milliseconds?, only positive values makes sense here.
-Protocol level|Uint8|1 [20]|0x01|Byte representing xBridge functionality, xBridge2 = 0x01
+Protocol level|Uint8|1 [20]|0x01|Byte representing xBridge functionality, xBridge2 = 0x01
 
-NOTE: Protocol level is ignored by xDrip and since a standard BLE package is 20bytes, we simply do not send it. 
-
-See lines 1690 in DexCollection service, but nowhere is function used. Size however must be 0x15 to be recognized as a Dexbridge/xBridge packet, se TransmissionData#create. A size 0x11 represents a xBridge1 packet(?), without support for historic data.
+NOTE: Protocol level is ignored by xDrip and since a standard BLE package is 20bytes, it may be omitted to avoid having to split transmission in multiple packets. Note that size still have to be 0x15 for the packet to be correctly identified. A size 0x11 represents a xBridge1 packet(?), without support for historic data.
 
 Due to C alignment, a C struct with the above types will have the wrong size and byte positions. Such a struct must be "packed" for the decoding in xDrip+ to work.
 
