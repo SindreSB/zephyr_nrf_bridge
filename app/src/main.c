@@ -1,6 +1,7 @@
 #include <zephyr.h>
 #include <misc/printk.h>
 #include <zephyr/types.h>
+#include <settings/settings.h>
 #include <stddef.h>
 #include <string.h>
 #include <errno.h>
@@ -11,6 +12,7 @@
 #include <bluetooth/conn.h>
 #include <bluetooth/uuid.h>
 #include <bluetooth/gatt.h>
+#include <bluetooth/controller.h>
 
 #include <autoconf.h>
 
@@ -79,8 +81,6 @@ static void bt_ready(int err)
 
 	printk("Bluetooth initialized\n");
 
-	//cgm_init();
-
 	cgms_init();
 
 	err = bt_le_adv_start(BT_LE_ADV_CONN_NAME, ad, ARRAY_SIZE(ad), NULL, 0);
@@ -107,8 +107,10 @@ static struct bt_conn_auth_cb auth_cb_display = {
 
 void main(void)
 {
-    int err;
+	u8_t addr[6] = {0x64, 0x40, 0x59, 0x22, 0xd2, 0xe7};
+	bt_ctlr_set_public_addr(addr);
 
+    int err;
 	err = bt_enable(bt_ready);
 	if (err) {
 		printk("Bluetooth init failed (err %d)\n", err);
