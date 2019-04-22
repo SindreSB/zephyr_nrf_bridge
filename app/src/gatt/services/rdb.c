@@ -27,6 +27,27 @@ s32_t rdb_get(u32_t index, meas_record_t** rec_ptr)
     return -1;
 }
 
+s32_t rdb_pop() {
+    if (rdb_size() <= 0) {
+        return -1;
+    }
+
+    tail = (tail + 1) % RDB_STORE_CAPACITY;
+
+    return 0;
+}
+
+s32_t rdb_get_last(meas_record_t** rec_ptr) {
+    if (rdb_size() <= 0) {
+        return -1;
+    }
+
+    *rec_ptr = &rd_store[tail];
+
+    return 0;
+}
+
+
 s32_t rdb_delete(u32_t index)
 {
     if (tail + index < rdb_size()) {
@@ -40,7 +61,7 @@ s32_t rdb_delete(u32_t index)
 
 u32_t rdb_size()
 {
-    if (head == 0 && tail == 0) return 0;
+    if (head == tail) return 0;
     if (head > tail) return head - tail;
     else return head - tail + RDB_STORE_CAPACITY;
 }

@@ -51,6 +51,7 @@ static void connected(struct bt_conn *conn, u8_t err)
 	} else {
 		default_conn = bt_conn_ref(conn);
 		printk("Connected\n");
+		cgms_send_all();
 	}
 }
 
@@ -138,15 +139,14 @@ void main(void)
 		.transmitterId = 0x01,
 		.rawIsig = 72000,
 		.filIsig =72000,
-		.batLevel = 100
+		.batLevel = 214
 	};
 
     while(1) {
         k_sleep(K_SECONDS(CONFIG_CC2500_SIMULATED_TRANS_SPACING));
 
 		simulated_package.timestamp = k_uptime_get_32();
-		simulated_package.filIsig = simulated_package.filIsig + 1000 % 72000;
-
+		
 		cgms_add_measurement(simulated_package);
 
     }

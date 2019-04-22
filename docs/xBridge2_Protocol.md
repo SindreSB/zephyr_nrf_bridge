@@ -68,7 +68,7 @@ Packet type|Uint8|1 [1] |0xF1|Packet type - beacon type is 0xF1
 TxId|Uint32|4 [2:5]||Dexcom transmitter id, int encoded
 Protocol level|Uint8|1 [6]|0x01|xBridge protocol level
 
-NOTE: In the original xBridge2 documentation, there is a typo which states the size of the beacon package is 0x06, though xBrip correctly uses the size 0x07 to identify a beacon package.
+NOTE: In the original xBridge2 documentation, there is a typo which states the size of the beacon package is 0x06, though xDrip correctly uses the size 0x07 to identify a beacon package.
 
 ## Conversion from transmitter id to int representation:
 Define the table [0-9A-Y], which contains 32 characters. To index into this table, 5 bits are needed. To convert to, from string, each letter is replaced by its index in the table. The resulting ID is 25 bits long, and is stored in a Uint32, all other bits being 0. 

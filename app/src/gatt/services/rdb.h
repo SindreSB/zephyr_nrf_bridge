@@ -44,6 +44,22 @@ typedef struct meas_record {
 s32_t rdb_get(u32_t index, meas_record_t** rec_ptr);
 
 /**
+ * @brief Pop last record (first in)
+ * 
+ * @return s32_t Success code, 0 if rec_ptr is valid
+ */
+s32_t rdb_pop();
+
+/**
+ * @brief Get last record (first in) and store it
+ * in rec_ptr
+ * 
+ * @param rec_ptr Where to store pointr of record
+ * @return s32_t Success code
+ */
+s32_t rdb_get_last(meas_record_t** rec_ptr);
+
+/**
  * @brief Deletes all entried up to index inclusive
  * 
  * @param index 

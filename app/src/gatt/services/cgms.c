@@ -22,18 +22,26 @@
 #include "../ble_types.h"
 #include "../ble_utils.h"
 
+LOG_MODULE_REGISTER(CGMS);
 
 // Values
-static ble_meas_pkt_t measurement_value;
-
+static u8_t measurement_value_len;
+static u8_t measurement_value[20];
 static u32_t trans_id_value;
+
+// Forward declare utilities
+void send_beacon_pkt(struct k_work *item);
+void send_meas_pkt(struct k_work *item);
+
+// Work items for sending packages
+K_WORK_DEFINE(send_beacon_pkt_work, send_beacon_pkt);
+K_WORK_DEFINE(send_meas_pkt_work, send_meas_pkt);
 
 // UUIDs for service
 
 static struct bt_uuid_128 XBRIDGE2_SERVICE_UUID = BT_UUID_INIT_128(
     0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80,
     0x00, 0x10, 0x00, 0x00, 0xe0, 0xff, 0x00, 0x00);
-
 
 /**
  * 
@@ -60,21 +68,46 @@ static void measurement_ccc_cfg_changed(const struct bt_gatt_attr *attr, u16_t v
 static ssize_t read_measurement(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 			 void *buf, u16_t len, u16_t offset)
 {
-	const ble_meas_pkt_t *value = attr->user_data;
+	u8_t *value = attr->user_data;
 
 	return bt_gatt_attr_read(conn, attr, buf, len, offset, value,
-				 sizeof(*value));
+				 measurement_value_len);
 }
 
-static ssize_t write_measurement(struct bt_conn *conn, const struct bt_gatt_attr *attr, const void *buf, u16_t len, u16_t offset, u8_t flags) {
+static ssize_t write_measurement(struct bt_conn *conn, 
+                                    const struct bt_gatt_attr *attr, 
+                                    const void *buf, 
+                                    u16_t len, 
+                                    u16_t offset, 
+                                    u8_t flags) {
     
     //TODO: Read first byte to check that size is > 1
     // then use second byte to identify packet type
-    // attr->user_data
+    u8_t* data = (u8_t*) buf;
+
+    if (data[0] < 0x02) {
+        return len;
+    }
+
+    if (data[1] == 0x01) { // TODO: Check package length based on type
+        // We have a tx package
+        ble_trans_id_pkt_t *tx_pkt = (ble_trans_id_pkt_t*) buf;
+        trans_id_value = tx_pkt->transmitter_id;
+
+        LOG_INF("Tx package received, with id: %u", tx_pkt->transmitter_id);
+        LOG_INF("Tx set, with id: %u", trans_id_value);
+        
+        k_work_submit(&send_beacon_pkt_work);
+    }
+    else if (data[1] == 0xF0) 
+    {
+        LOG_INF("Measurement ack received");
+        rdb_pop();
+        k_work_submit(&send_meas_pkt_work);
+    }
 
     // Data we can use begin at value + offset. 
     // Size of package is len
-
     return len;
 }
 
@@ -111,7 +144,9 @@ u32_t calculateTimeDelay(u32_t timestamp)
 
 void set_measurement_value(meas_record_t* ptr) 
 {
-    measurement_value = (ble_meas_pkt_t) {
+    ble_meas_pkt_t pkt = {
+        .size = 0x15,
+        .packet_type = 0x00,
         .raw_value = ptr->raw,
         .filtered_value = ptr->filtered,
         .trans_bat = ptr->trans_batt,
@@ -119,8 +154,37 @@ void set_measurement_value(meas_record_t* ptr)
         .transmitter_id = trans_id_value,
         .measurement_delay = calculateTimeDelay(ptr->timestamp)
     };
+    measurement_value_len = sizeof(ble_meas_pkt_t);
 
-    bt_gatt_notify(NULL, &attrs[1], &measurement_value, sizeof(measurement_value));
+    memcpy(measurement_value, &pkt, measurement_value_len);
+
+    LOG_INF("Notifying new package");
+    bt_gatt_notify(NULL, &attrs[1], &measurement_value, measurement_value_len);
+}
+
+void send_beacon_pkt(struct k_work *item) {
+    ble_beacon_pkt_t pkt = {
+        .size = 0x07,
+        .packet_type = 0xF1,
+        .transmitter_id = trans_id_value,
+        .protocol_level = 0x01
+    };
+    measurement_value_len = sizeof(ble_beacon_pkt_t);
+    memcpy(measurement_value, &pkt, measurement_value_len);
+
+    bt_gatt_notify(NULL, &attrs[1], &measurement_value, measurement_value_len);
+}
+
+void send_meas_pkt(struct k_work *item) {
+    meas_record_t *meas_rec_ptr;
+
+    int status = rdb_get_last(&meas_rec_ptr);
+    LOG_DBG("Rdp last returned: %i", status);
+    if (status != 0) {
+        return;
+    }
+
+    set_measurement_value(meas_rec_ptr);
 }
 
 
@@ -142,7 +206,7 @@ void cgms_init(void)
 }
 
 void cgms_send_all() {
-    // TODO: Not implemented
+    send_meas_pkt(NULL);
 }
 
 void cgms_add_measurement(dexcom_package_t reading)
@@ -157,5 +221,5 @@ void cgms_add_measurement(dexcom_package_t reading)
         .timestamp = reading.timestamp,
     };
 
-    set_measurement_value(rec_ptr);
+    send_meas_pkt(NULL);
 }
