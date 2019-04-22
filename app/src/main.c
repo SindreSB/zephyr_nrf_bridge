@@ -105,23 +105,9 @@ static struct bt_conn_auth_cb auth_cb_display = {
 	.cancel = auth_cancel,
 };
 
-void main(void)
-{
-	u8_t addr[6] = {0x64, 0x40, 0x59, 0x22, 0xd2, 0xe7};
-	bt_ctlr_set_public_addr(addr);
-
-    int err;
-	err = bt_enable(bt_ready);
-	if (err) {
-		printk("Bluetooth init failed (err %d)\n", err);
-		return;
-	}
-
-	bt_conn_cb_register(&conn_callbacks);
-    bt_conn_auth_cb_register(&auth_cb_display);
-
 #ifdef CONFIG_CC2500
-    init_dexcom();
+void run_cgm() {
+	init_dexcom();
     start_cc2500(&dexcom_receiver_ctx);
 
     while(1){
@@ -135,7 +121,9 @@ void main(void)
 
         k_free(pkt);
     }
+}
 #else
+void run_cgm() {
 	dexcom_package_t simulated_package = {
 		.timestamp = 0,
 		.transmitterId = 0x01,
@@ -152,5 +140,24 @@ void main(void)
 		cgms_add_measurement(simulated_package);
 
     }
+}
 #endif
+
+void main(void)
+{
+	u8_t addr[6] = {0x64, 0x40, 0x59, 0x22, 0xd2, 0xe7};
+	bt_ctlr_set_public_addr(addr);
+
+    int err;
+	err = bt_enable(bt_ready);
+	if (err) {
+		printk("Bluetooth init failed (err %d)\n", err);
+		return;
+	}
+
+	bt_conn_cb_register(&conn_callbacks);
+    bt_conn_auth_cb_register(&auth_cb_display);
+
+	run_cgm();
+
 }
