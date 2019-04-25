@@ -9,6 +9,7 @@
 
 #define DE_NO_PACKAGE -1
 
+
 typedef enum DE_EVENT {
     DE_PACKAGE_RECEIVED,
     DE_PACKAGE_INVALID,
@@ -30,6 +31,8 @@ typedef struct dexcom_event {
     void *data;
 } dexcom_event_t;
 
+typedef void (*dex_pkt_handler)(dexcom_package_t*);
+
 typedef struct dexcom_ctx {
     u64_t transmitterId;
     struct k_fifo *package_queue;
@@ -48,6 +51,8 @@ typedef struct dexcom_ctx {
 
     cc2500_ctx_t * cc_ctx;
     gpio_callback_handler_t gdo0_interrupt_handler;
+
+    dex_pkt_handler package_callback;
 } dexcom_ctx_t;
 
 void start_cc2500(dexcom_ctx_t *dex_ctx);

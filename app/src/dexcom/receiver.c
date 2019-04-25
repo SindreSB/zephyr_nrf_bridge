@@ -33,7 +33,7 @@ void start_cc2500(dexcom_ctx_t *ctx) {
         return;
     }
 
-    // Set up callback for package received
+    // Set up hanler for package asserted
     cc2500_register_gdo0_handler(ctx->cc_ctx, ctx->gdo0_interrupt_handler, GPIO_INT_EDGE | GPIO_INT_ACTIVE_HIGH);
     
     // Go into receive on channel 0
@@ -150,10 +150,16 @@ void handle_dexcom_event(dexcom_ctx_t *ctx, dexcom_event_t event)
         ctx->last_package_received = last_received - channel_compensation;
         LOG_INF("Received package at: %d (%d)", ctx->last_package_received, ctx->last_package_received + DE_TIME_BETWEEN_CHANNEL * ctx->current_channel);
 
-        k_fifo_alloc_put(ctx->package_queue, (dexcom_package_t *) event.data);
-
-        // Go to sleep
+        // Set sleeptimer
         enter_sleep(ctx);
+
+        // Deliver package to handler
+        ctx->package_callback((dexcom_package_t*)event.data);
+
+        // Free the memory of the package
+        k_free(event.data);
+
+        // Handler complete
         return;
     }
     else if (event.type == DE_PACKAGE_INVALID) 
@@ -170,6 +176,8 @@ void handle_dexcom_event(dexcom_ctx_t *ctx, dexcom_event_t event)
             // Use a long delay, in case bad window alignment, but do not automatically jump
             k_timer_start(ctx->timeout_timer, K_MSEC(DE_TIME_ASSUME_MISSED), 0);
         }
+
+        return;
     }
     else if (event.type == DE_SLEEP_TIMEOUT)
     {
@@ -187,7 +195,7 @@ void handle_dexcom_event(dexcom_ctx_t *ctx, dexcom_event_t event)
         u32_t next_expected = ctx->last_package_received + DE_TIME_BETWEEN_TRANS + missed_window_compesation;
         LOG_INF("Expecting next transmission at: %d", next_expected);
         
-        // After sleep, decause of clock drift, use a long timeout, and only change channel if bad package is received
+        // After sleep, because of clock drift, use a long timeout, and only change channel if bad package is received
         u32_t first_timeout = (next_expected - k_uptime_get_32()) + (DE_TIME_ASSUME_MISSED);
         LOG_INF("Will timout in: %d", first_timeout);
         k_timer_start(ctx->timeout_timer, K_MSEC(first_timeout), 0);
@@ -197,20 +205,9 @@ void handle_dexcom_event(dexcom_ctx_t *ctx, dexcom_event_t event)
     }
     else if (event.type == DE_CHANNEL_TIMEOUT) 
     {
-
-
-        // For use with channel hopping
-        LOG_INF("CHANNEL_EVENT: Channel timeout at: %d", k_uptime_get_32());
-        if ( ctx->current_channel == 3) {
-            handle_no_package_received(ctx);
-        } else {
-            // Go to next channel
-            ctx->current_channel++;
-            cc2500_mode_receive(ctx->cc_ctx, ctx->current_channel);
-
-            // Set channel timeout - We assume we are hopping approx 
-            k_timer_start(ctx->timeout_timer, K_MSEC(1 * DE_TIME_BETWEEN_CHANNEL), 0);
-        }
+        // Channel timeout means we assume we lost all transmissions
+        handle_no_package_received(ctx);
+        
         return;
     }
 }

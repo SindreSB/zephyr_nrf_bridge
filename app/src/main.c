@@ -22,22 +22,13 @@
 #include "dexcom/receiver.h"
 #include "gatt/services/cgms.h"
 
-#ifdef CONFIG_CC2500
-DEXCOM_RECEIVER(dexcom_receiver_ctx);
-DEXCOM_RECEIVER_TIMER(dexcom_receiver_ctx);
-DEXCOM_INTERRUPT_HANDLER(dexcom_receiver_ctx);
-
-dexcom_package_t *pkt;
-
-void init_dexcom() {
-    dexcom_receiver_ctx.timeout_timer = &dexcom_receiver_ctx_timer;
-    dexcom_receiver_ctx.gdo0_interrupt_handler = &dexcom_receiver_ctx_int_handler;
-}
-#else
-void init_dexcom() {}
-#endif /* CONFIG_SIMULATE_RECEIVER */
-
-
+/**********************************
+ * 
+ * 
+ * BLE
+ * 
+ * 
+ * *******************************/
 
 struct bt_conn *default_conn;
 
@@ -105,24 +96,43 @@ static struct bt_conn_auth_cb auth_cb_display = {
 	.cancel = auth_cancel,
 };
 
+/*****************************************
+ *
+ * 
+ * 
+ * Dexcom receiver
+ * 
+ * 
+ * 
+ * **************************************/
+
+void onDexcomPackageReceived(dexcom_package_t *pkt) {
+	printk("Timestamp: %d\n", pkt->timestamp);
+	printk("Raw: %d\n", pkt->rawIsig);
+	printk("Fil: %d\n", pkt->filIsig);
+
+	cgms_add_measurement(*pkt);
+}
+
 #ifdef CONFIG_CC2500
+DEXCOM_RECEIVER(dexcom_receiver_ctx);
+DEXCOM_RECEIVER_TIMER(dexcom_receiver_ctx);
+DEXCOM_INTERRUPT_HANDLER(dexcom_receiver_ctx);
+
+dexcom_package_t *pkt;
+void init_dexcom() {
+    dexcom_receiver_ctx.timeout_timer = &dexcom_receiver_ctx_timer;
+    dexcom_receiver_ctx.gdo0_interrupt_handler = &dexcom_receiver_ctx_int_handler;
+	dexcom_receiver_ctx.package_callback = onDexcomPackageReceived;
+}
+
 void run_cgm() {
 	init_dexcom();
     start_cc2500(&dexcom_receiver_ctx);
-
-    while(1){
-        pkt = k_fifo_get(dexcom_receiver_ctx.package_queue, K_FOREVER);
-    
-        printk("Timestamp: %d\n", pkt->timestamp);
-        printk("Raw: %d\n", pkt->rawIsig);
-        printk("Fil: %d\n", pkt->filIsig);
-
-        cgms_add_measurement(*pkt);
-
-        k_free(pkt);
-    }
 }
 #else
+void init_dexcom() {}
+
 void run_cgm() {
 	dexcom_package_t simulated_package = {
 		.timestamp = 0,

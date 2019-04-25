@@ -1,6 +1,4 @@
 
-#ifdef CONFIG_CC2500
-
 #include <zephyr.h>
 #include <logging/log.h>
 #include <misc/printk.h>
@@ -15,6 +13,8 @@
 
 // Includes defines for used pins
 #include "config.h"
+
+#ifdef CONFIG_CC2500
 
 LOG_MODULE_REGISTER(cc2500_spi);
 

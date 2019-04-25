@@ -1,5 +1,3 @@
-#ifdef CONFIG_CC2500
-
 #include <zephyr.h>
 #include <logging/log.h>
 
@@ -9,6 +7,9 @@
 
 LOG_MODULE_REGISTER(cc2500);
 
+#include <autoconf.h>
+
+#ifdef CONFIG_CC2500
 
 #define NUM_CHANNELS 4
 static u8_t nChannels[NUM_CHANNELS] = { 0, 100, 199, 209 };

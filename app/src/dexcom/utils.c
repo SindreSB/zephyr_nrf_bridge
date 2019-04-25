@@ -1,6 +1,8 @@
-#ifdef CONFIG_CC2500
+
 
 #include <zephyr.h>
+#include <autoconf.h>
+#ifdef CONFIG_CC2500
 
 /**
  * @brief Compute the CRC8 of an array of bytes
