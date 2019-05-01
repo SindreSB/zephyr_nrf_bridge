@@ -219,7 +219,7 @@ void enter_sleep(dexcom_ctx_t *ctx)
     cc2500_mode_off(ctx->cc_ctx);
 
     // Calculate sleeptime
-    u32_t sleeptime = DE_TIME_BETWEEN_TRANS - DE_TIME_BETWEEN_CHANNEL * (ctx->current_channel + 1) - 10000;
+    u32_t sleeptime = DE_TIME_BETWEEN_TRANS - DE_TIME_BETWEEN_CHANNEL * (ctx->current_channel + 1) - DE_TIME_WAKEUP_MARGIN;
 
     // Set timer
     k_timer_start(ctx->timeout_timer, K_MSEC(sleeptime), 0);

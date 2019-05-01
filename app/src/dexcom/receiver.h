@@ -6,6 +6,7 @@
 #define DE_TIME_BETWEEN_TRANS (1000 * 60 * 5)           // 1 min
 #define DE_TIME_BETWEEN_CHANNEL (500)                   // 500 ms
 #define DE_TIME_ASSUME_MISSED (10 * 1000)               // 10 sec
+#define DE_TIME_WAKEUP_MARGIN (5 * 1000)               // 10 sec
 
 #define DE_NO_PACKAGE -1
 
