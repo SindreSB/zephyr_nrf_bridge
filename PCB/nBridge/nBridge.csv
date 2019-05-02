@@ -1,16 +1,16 @@
-Reference, Quantity, Value, Footprint, Datasheet
-C2 C4 C1 C3 ,4,"1uF","Capacitor_SMD:C_0402_1005Metric","~"
-D1 D2 ,2,"LED","LED_SMD:LED_0603_1608Metric","~"
-J1 ,1,"USB_C_Receptacle_USB2.0","SharedFootprints:12401610E4#2A","https://www.usb.org/sites/default/files/documents/usb_type-c.zip"
-J2 ,1,"Conn_01x06","SharedFootprints:Conn_Pas_01x06_1.27mm","~"
-J3 ,1,"Conn_01x02","Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical","~"
-R1 R7 ,2,"10k","Resistor_SMD:R_0402_1005Metric","~"
-R2 ,1,"1k35","Resistor_SMD:R_0402_1005Metric","~"
-R3 ,1,"6k","Resistor_SMD:R_0402_1005Metric","~"
-R4 R5 ,2,"220R","Resistor_SMD:R_0402_1005Metric","~"
-R6 ,1,"27k","Resistor_SMD:R_0402_1005Metric","~"
-SW1 ,1,"Switch-SPDT","SharedFootprints:CSS-121XB","~"
-U1 ,1,"TPS7A0533PYKAR","SharedFootprints:TPS7A0533PYKAR",""
-U2 ,1,"BQ25100YFPR","SharedFootprints:BQ25100YFPR",""
-U3 ,1,"BL652","RF_Module:Laird_BL652","http://cdn.lairdtech.com/home/brandworld/files/Datasheet%20-%20BL652.pdf"
-U4 ,1,"CC2500Module","nBridge:CC2500Module",""
+Reference, Quantity, Value, Footprint, Datasheet, Category, DK_Datasheet_Link, DK_Detail_Page, Description, Digi-Key_PN, Family, MPN, Manufacturer, Status
+C3 C1 C2 C4 ,4,1uF,Capacitor_SMD:C_0805_2012Metric,~,,,,,,,,,
+D1 ,1,GREEN LED,LED_SMD:LED_0603_1608Metric,~,,,,,,,,,
+D2 ,1,RED LED,LED_SMD:LED_0603_1608Metric,~,,,,,,,,,
+J1 ,1,473460001,digikey-footprints:USB_Micro_B_Female_0473460001,https://www.molex.com/pdm_docs/sd/473460001_sd.pdf,"Connectors, Interconnects",https://www.molex.com/pdm_docs/sd/473460001_sd.pdf,/product-detail/en/molex/0473460001/WM17141CT-ND/1782474,CONN RCPT USB2.0 MICRO B SMD R/A,WM17141CT-ND,"USB, DVI, HDMI Connectors",473460001,Molex,Active
+J2 ,1,Conn_01x06,SharedFootprints:Conn_Pas_01x06_1.27mm,~,,,,,,,,,
+J3 ,1,Conn_01x02,Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical,~,,,,,,,,,
+R1 ,1,R,Resistor_SMD:R_0805_2012Metric,~,,,,,,,,,
+R4 R5 ,2,220R,Resistor_SMD:R_0805_2012Metric,~,,,,,,,,,
+R6 ,1,27k,Resistor_SMD:R_0805_2012Metric,~,,,,,,,,,
+R7 ,1,10k,Resistor_SMD:R_0805_2012Metric,~,,,,,,,,,
+SW1 ,1,Switch-SPDT,SharedFootprints:CSS-121XB,~,,,,,,,,,
+U1 ,1,LP5907MFX-3_3_NOPB,digikey-footprints:SOT-753,http://www.ti.com/general/docs/suppproductinfo.tsp?distId=10&gotoUrl=http%3A%2F%2Fwww.ti.com%2Flit%2Fgpn%2Flp5907,Integrated Circuits (ICs),http://www.ti.com/general/docs/suppproductinfo.tsp?distId=10&gotoUrl=http%3A%2F%2Fwww.ti.com%2Flit%2Fgpn%2Flp5907,/product-detail/en/texas-instruments/LP5907MFX-3.3-NOPB/296-38557-1-ND/5034443,IC REG LINEAR 3.3V 250MA SOT23-5,296-38557-1-ND,PMIC - Voltage Regulators - Linear,LP5907MFX-3.3/NOPB,Texas Instruments,Active
+U2 ,1,MCP73812T-420I_OT,digikey-footprints:SOT-753,http://www.microchip.com/mymicrochip/filehandler.aspx?ddocname=en528273,Integrated Circuits (ICs),http://www.microchip.com/mymicrochip/filehandler.aspx?ddocname=en528273,/product-detail/en/microchip-technology/MCP73812T-420I-OT/MCP73812T-420I-OTCT-ND/1979800,IC LI-ION/LI-POLY CTRLR SOT23-5,MCP73812T-420I/OTCT-ND,PMIC - Battery Chargers,MCP73812T-420I/OT,Microchip Technology,Active
+U3 ,1,BL652,RF_Module:Laird_BL652,http://cdn.lairdtech.com/home/brandworld/files/Datasheet%20-%20BL652.pdf,,,,,,,BL652-SA-01,LAIRD,
+U4 ,1,CC2500Module,nBridge:CC2500Module,,,,,,,,,,
