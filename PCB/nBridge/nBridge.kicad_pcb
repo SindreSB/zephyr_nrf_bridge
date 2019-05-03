@@ -245,6 +245,11 @@
       (net 46 "Net-(J1-Pad4)"))
     (pad 5 smd rect (at -1.3 2.66 180) (size 1.38 0.45) (layers F.Cu F.Paste F.Mask)
       (net 2 GND))
+    (model C:/Users/sindr/OneDrive/Documents/Prosjekter/PCBModels/473460001.stp
+      (offset (xyz 0 -0.2 1.22))
+      (scale (xyz 1 1 1))
+      (rotate (xyz -90 0 180))
+    )
   )
 
   (module Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical (layer F.Cu) (tedit 59FED5CC) (tstamp 5C9FB263)
